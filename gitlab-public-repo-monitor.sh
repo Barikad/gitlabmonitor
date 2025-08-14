@@ -97,7 +97,7 @@ get_public_projects_from_api() {
     local page=1
     local all_projects_json="[]"
     
-    log_info "Récupération des projets publics via l'API..."
+    log_info >&2 "Récupération des projets publics via l'API..."
 
     while true; do
         local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=created_at&sort=desc&per_page=100&page=${page}"
@@ -105,13 +105,11 @@ get_public_projects_from_api() {
         local response
         response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
         
-        # Si la réponse est vide ou n'est pas un JSON valide, on arrête
         if ! echo "$response" | jq empty 2>/dev/null; then
-            log_warn "Réponse de l'API invalide ou vide à la page ${page}. Arrêt de la pagination."
+            log_warn >&2 "Réponse de l'API invalide ou vide à la page ${page}. Arrêt de la pagination."
             break
         fi
         
-        # Si la page ne contient aucun projet, c'est la fin
         if [[ "$(echo "$response" | jq 'length')" -eq 0 ]]; then
             break
         fi
@@ -119,20 +117,19 @@ get_public_projects_from_api() {
         all_projects_json=$(echo "$all_projects_json" "$response" | jq -s 'add')
         ((page++))
 
-        if [[ $page -gt 50 ]]; then # Sécurité anti-boucle infinie
-            log_warn "Limite de 50 pages API atteinte."
+        if [[ $page -gt 50 ]]; then
+            log_warn >&2 "Limite de 50 pages API atteinte."
             break
         fi
     done
     
-    log_info "Trouvé $(echo "$all_projects_json" | jq 'length') projets publics."
+    log_info >&2 "Trouvé $(echo "$all_projects_json" | jq 'length') projets publics."
     echo "$all_projects_json"
 }
 
 check_file_exists() {
     local project_path_with_namespace="$1"
     local file_path="$2"
-    # L'encodage de l'URL est important pour les noms de projets/groupes avec des caractères spéciaux
     local encoded_project_path
     encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
     
@@ -192,7 +189,7 @@ send_email() {
     local subject="$1"
     local body="$2"
     local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
+    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^\*\*\(.*\)\*\*<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
@@ -239,7 +236,6 @@ process_repo() {
     local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
     local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
     local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-    # L'auteur du dernier commit n'est pas dans cette réponse API, on utilise le créateur du projet.
     local repo_dev; repo_dev=$(echo "$project_json" | jq -r '.owner.name // "N/A"')
 
     log_info "Traitement du projet: $repo_name (ID: $repo_id)"
@@ -259,7 +255,7 @@ process_repo() {
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.0 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.0.1 API) ==="
     load_config
     check_dependencies
     touch "$TRACKING_FILE"
@@ -276,7 +272,6 @@ main() {
     local new_repo_count=0
     log_info "Analyse de ${project_count} projets..."
     
-    # Itérer sur chaque projet de l'array JSON
     for project_json in $(echo "$public_projects_json" | jq -c '.[]'); do
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
         if ! is_repo_tracked "$repo_id"; then
@@ -301,7 +296,7 @@ main() {
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor v2.0
+GitLab Public Repository Monitor v2.0.1
 Usage: $0 [OPTIONS]
 Monitors for new public repositories on GitLab and notifies via email.
 Options:
