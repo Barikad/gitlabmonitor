@@ -5,18 +5,18 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  1.4.1
+# Version:  2.0
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
-# Ce script surveille une instance GitLab pour détecter les nouveaux dépôts
-# publics. Il envoie une notification par email lors de la première
-# détection, en utilisant soit sendmail, soit un serveur SMTP externe.
+# Ce script utilise l'API officielle de GitLab pour surveiller l'apparition
+# de nouveaux dépôts publics. Il envoie une notification par email lors de
+# la première détection, en utilisant soit sendmail, soit un serveur SMTP.
 #
 # Description (EN):
-# This script monitors a GitLab instance for new public repositories.
-# It sends an email notification upon first detection, using either
-# sendmail or an external SMTP server.
+# This script uses the official GitLab API to monitor for new public
+# repositories. It sends an email notification upon first detection,
+# using either sendmail or an external SMTP server.
 #
 #==============================================================================
 
@@ -57,9 +57,9 @@ log_success() { log "${GREEN}SUCCESS${NC}" "$@"; }
 #==============================================================================
 
 check_dependencies() {
-    local deps=("curl" "sendmail")
+    local deps=("curl" "jq" "sendmail")
     if [[ -n "${SMTP_SERVER:-}" ]]; then
-        deps=("curl")
+        deps=("curl" "jq")
     fi
 
     for dep in "${deps[@]}"; do
@@ -90,46 +90,54 @@ load_config() {
 }
 
 #==============================================================================
-# GitLab Functions (via Scraping)
+# GitLab API Functions
 #==============================================================================
 
-get_public_projects() {
+get_public_projects_from_api() {
     local page=1
-    local all_projects=()
-    log_info "Récupération des projets publics..."
+    local all_projects_json="[]"
+    
+    log_info "Récupération des projets publics via l'API..."
+
     while true; do
-        local projects_on_page
-        projects_on_page=($(curl -s "${GITLAB_URL}/explore/projects?sort=latest_activity_desc&page=${page}" | grep -oP 'class="project-name".*?href="\K(/[^/]+/[^/]+)(?=")' | sort -u))
-        if [[ ${#projects_on_page[@]} -eq 0 ]]; then break; fi
-        all_projects+=("${projects_on_page[@]}")
+        local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=created_at&sort=desc&per_page=100&page=${page}"
+        
+        local response
+        response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
+        
+        # Si la réponse est vide ou n'est pas un JSON valide, on arrête
+        if ! echo "$response" | jq empty 2>/dev/null; then
+            log_warn "Réponse de l'API invalide ou vide à la page ${page}. Arrêt de la pagination."
+            break
+        fi
+        
+        # Si la page ne contient aucun projet, c'est la fin
+        if [[ "$(echo "$response" | jq 'length')" -eq 0 ]]; then
+            break
+        fi
+        
+        all_projects_json=$(echo "$all_projects_json" "$response" | jq -s 'add')
         ((page++))
-        if [[ $page -gt 50 ]]; then
-            log_warn "Limite de 50 pages atteinte."
+
+        if [[ $page -gt 50 ]]; then # Sécurité anti-boucle infinie
+            log_warn "Limite de 50 pages API atteinte."
             break
         fi
     done
-    log_info "Trouvé ${#all_projects[@]} projets publics."
-    printf '%s\n' "${all_projects[@]}" | sort -u
-}
-
-get_project_details() {
-    local project_path="$1"
-    local project_url="${GITLAB_URL}${project_path}"
-    local page_content
-    page_content=$(curl -sL "$project_url")
-    local repo_name
-    repo_name=$(echo "$page_content" | grep -oP '<title>[^<]*' | sed 's/<title>//' | cut -d'·' -f1 | xargs)
-    local repo_dev
-    repo_dev=$(echo "$page_content" | grep -oP 'authored by <a[^>]*>([^<]+)</a>' | sed -e 's/.*>\(.*\)<.*/\1/' | xargs)
-    [[ -z "$repo_name" ]] && repo_name="Unknown"
-    [[ -z "$repo_dev" ]] && repo_dev="Unknown"
-    echo "$repo_name|$repo_url|$repo_dev"
+    
+    log_info "Trouvé $(echo "$all_projects_json" | jq 'length') projets publics."
+    echo "$all_projects_json"
 }
 
 check_file_exists() {
-    local project_path="$1"
+    local project_path_with_namespace="$1"
     local file_path="$2"
-    if curl -s --head --fail "${GITLAB_URL}${project_path}/-/blob/main/${file_path}" > /dev/null || curl -s --head --fail "${GITLAB_URL}${project_path}/-/blob/master/${file_path}" > /dev/null; then
+    # L'encodage de l'URL est important pour les noms de projets/groupes avec des caractères spéciaux
+    local encoded_project_path
+    encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
+    
+    if curl -s --head --fail "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main" > /dev/null || \
+       curl -s --head --fail "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master" > /dev/null; then
         echo "✅"
     else
         echo "❌"
@@ -141,15 +149,13 @@ check_file_exists() {
 #==============================================================================
 
 is_repo_tracked() {
-    local repo_hash
-    repo_hash=$(echo "$1" | sha256sum | cut -d' ' -f1)
-    [[ -f "$TRACKING_FILE" ]] && grep -q "^${repo_hash}$" "$TRACKING_FILE"
+    local repo_id="$1"
+    [[ -f "$TRACKING_FILE" ]] && grep -q "^${repo_id}$" "$TRACKING_FILE"
 }
 
 add_to_tracking() {
-    local repo_hash
-    repo_hash=$(echo "$1" | sha256sum | cut -d' ' -f1)
-    echo "$repo_hash" >> "$TRACKING_FILE"
+    local repo_id="$1"
+    echo "$repo_id" >> "$TRACKING_FILE"
 }
 
 #==============================================================================
@@ -186,7 +192,7 @@ send_email() {
     local subject="$1"
     local body="$2"
     local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---|<hr>|')
+    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
@@ -227,52 +233,65 @@ EOF
 #==============================================================================
 
 process_repo() {
-    local project_path="$1"
-    log_info "Traitement du nouveau projet: $project_path"
-    local project_details
-    project_details=$(get_project_details "$project_path")
-    IFS='|' read -r repo_name repo_url repo_dev <<< "$project_details"
-    if [[ "$repo_name" == "Unknown" ]]; then
-        log_warn "Détails introuvables pour $project_path."
-        return
-    fi
-    local has_license; has_license=$(check_file_exists "$project_path" "LICENSE")
-    local has_readme; has_readme=$(check_file_exists "$project_path" "README.md")
-    local has_contributing; has_contributing=$(check_file_exists "$project_path" "CONTRIBUTING.md")
-    log_info "Détails: Nom='$repo_name', Dev='$repo_dev'"
+    local project_json="$1"
+    
+    local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
+    local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
+    local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
+    local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+    # L'auteur du dernier commit n'est pas dans cette réponse API, on utilise le créateur du projet.
+    local repo_dev; repo_dev=$(echo "$project_json" | jq -r '.owner.name // "N/A"')
+
+    log_info "Traitement du projet: $repo_name (ID: $repo_id)"
+
+    local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
+    local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
+    local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+    
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
+    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+    
     local body; body=$(generate_email_body "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing")
+    
     if [[ -n "$body" ]] && send_email "$subject" "$body"; then
-        add_to_tracking "$project_path"
+        add_to_tracking "$repo_id"
     fi
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab ==="
+    log_info "=== Début du monitoring GitLab (v2.0 API) ==="
     load_config
     check_dependencies
     touch "$TRACKING_FILE"
-    local public_projects; public_projects=($(get_public_projects))
-    if [[ ${#public_projects[@]} -eq 0 ]]; then
+    
+    local public_projects_json; public_projects_json=$(get_public_projects_from_api)
+    local project_count; project_count=$(echo "$public_projects_json" | jq 'length')
+    
+    if [[ "$project_count" -eq 0 ]]; then
         log_info "Aucun projet public trouvé."
         log_info "=== Fin du monitoring. ==="
         exit 0
     fi
+    
     local new_repo_count=0
-    log_info "Analyse de ${#public_projects[@]} projets..."
-    for project_path in "${public_projects[@]}"; do
-        if ! is_repo_tracked "$project_path"; then
-            log_info "Nouveau dépôt détecté: $project_path"
-            process_repo "$project_path"
+    log_info "Analyse de ${project_count} projets..."
+    
+    # Itérer sur chaque projet de l'array JSON
+    for project_json in $(echo "$public_projects_json" | jq -c '.[]'); do
+        local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
+        if ! is_repo_tracked "$repo_id"; then
+            log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
+            process_repo "$project_json"
             ((new_repo_count++))
         fi
     done
+    
     if [[ $new_repo_count -eq 0 ]]; then
         log_info "Aucun nouveau dépôt à notifier."
     else
         log_success "$new_repo_count nouveaux dépôts traités."
     fi
+    
     log_info "=== Fin du monitoring GitLab. ==="
 }
 
@@ -282,7 +301,7 @@ main() {
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor v1.4
+GitLab Public Repository Monitor v2.0
 Usage: $0 [OPTIONS]
 Monitors for new public repositories on GitLab and notifies via email.
 Options:
@@ -296,8 +315,9 @@ fi
 if [[ "${1:-}" == "--dry-run" ]]; then
     log_warn "Mode DRY-RUN activé - Aucun email ne sera envoyé."
     send_email() {
+        local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
         log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
-        add_to_tracking "$project_path"
+        add_to_tracking "$repo_id"
         return 0
     }
 fi
