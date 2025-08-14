@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.0
+# Version:  2.0.1
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):

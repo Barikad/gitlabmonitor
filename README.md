@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-2.0-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
+[![Version](https://img.shields.io/badge/Version-2.0.1-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
 
 Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveiller l'apparition de nouveaux dépôts publics et envoyer des notifications par email.
 
@@ -21,7 +21,7 @@ Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveill
 
 ## 🚀 Installation
 
-### Prérequis
+### 1. Prérequis
 
 Le script nécessite `curl` et `jq`. `sendmail` est requis uniquement si vous n'utilisez pas de serveur SMTP externe.
 
@@ -33,24 +33,27 @@ sudo apt-get update && sudo apt-get install curl jq sendmail
 sudo yum install curl jq sendmail
 ```
 
-### Installation du script
+### 2. Téléchargement
 
-1.  **Téléchargez les fichiers nécessaires** :
-    ```bash
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/gitlab-public-repo-monitor.sh
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/config.conf.example
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/template.fr.md
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/template.en.md
-    
-    chmod +x gitlab-public-repo-monitor.sh
-    ```
+Téléchargez les 4 fichiers suivants depuis ce dépôt et placez-les dans un même répertoire :
+- `gitlab-public-repo-monitor.sh`
+- `config.conf.example`
+- `template.fr.md`
+- `template.en.md`
 
-2.  **Créez votre configuration** :
-    ```bash
-    cp config.conf.example config.conf
-    nano config.conf
-    ```
-    Adaptez au minimum `GITLAB_URL`, `EMAIL_TO` et `EMAIL_FROM`.
+Rendez le script exécutable :
+```bash
+chmod +x gitlab-public-repo-monitor.sh
+```
+
+### 3. Configuration
+
+Créez votre fichier de configuration personnel à partir de l'exemple fourni :
+```bash
+cp config.conf.example config.conf
+nano config.conf
+```
+Adaptez au minimum les variables `GITLAB_URL`, `EMAIL_TO` et `EMAIL_FROM` à votre environnement.
 
 ## 🖥️ Utilisation
 
@@ -87,7 +90,7 @@ A robust shell script that uses the **official GitLab API** to monitor for new p
 
 ## 🚀 Installation
 
-### Prerequisites
+### 1. Prerequisites
 
 The script requires `curl` and `jq`. `sendmail` is only required if you are not using an external SMTP server.
 
@@ -99,24 +102,27 @@ sudo apt-get update && sudo apt-get install curl jq sendmail
 sudo yum install curl jq sendmail
 ```
 
-### Script Installation
+### 2. Download
 
-1.  **Download the necessary files**:
-    ```bash
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/gitlab-public-repo-monitor.sh
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/config.conf.example
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/template.fr.md
-    wget https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/template.en.md
-    
-    chmod +x gitlab-public-repo-monitor.sh
-    ```
+Download the following 4 files from this repository and place them in the same directory:
+- `gitlab-public-repo-monitor.sh`
+- `config.conf.example`
+- `template.fr.md`
+- `template.en.md`
 
-2.  **Create your configuration**:
-    ```bash
-    cp config.conf.example config.conf
-    nano config.conf
-    ```
-    At a minimum, adapt `GITLAB_URL`, `EMAIL_TO`, and `EMAIL_FROM`.
+Make the script executable:
+```bash
+chmod +x gitlab-public-repo-monitor.sh
+```
+
+### 3. Configuration
+
+Create your personal configuration file from the provided example:
+```bash
+cp config.conf.example config.conf
+nano config.conf
+```
+At a minimum, adapt the `GITLAB_URL`, `EMAIL_TO`, and `EMAIL_FROM` variables to your environment.
 
 ## 🖥️ Usage
 
