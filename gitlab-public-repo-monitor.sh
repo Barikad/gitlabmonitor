@@ -5,18 +5,18 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.0.3
+# Version:  2.1.0
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
 # Ce script utilise l'API officielle de GitLab pour surveiller l'apparition
-# de nouveaux dépôts publics. Il envoie une notification par email lors de
-# la première détection, en utilisant soit sendmail, soit un serveur SMTP.
+# de nouveaux dépôts publics. Il envoie une notification par email en texte
+# brut (format Markdown) lors de la première détection.
 #
 # Description (EN):
 # This script uses the official GitLab API to monitor for new public
-# repositories. It sends an email notification upon first detection,
-# using either sendmail or an external SMTP server.
+# repositories. It sends a plain text email notification (Markdown formatted)
+# upon first detection.
 #
 #==============================================================================
 
@@ -27,6 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.conf"
 TRACKING_FILE="${SCRIPT_DIR}/tracked_repos.txt"
 LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log"
+DRY_RUN=false
 
 #===[ Colors for logs ]===#
 RED='\033[0;31m'
@@ -101,16 +102,10 @@ get_public_projects_from_api() {
 
     while true; do
         local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=created_at&sort=desc&per_page=100&page=${page}"
-        
         local response
         response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
         
-        if ! echo "$response" | jq empty 2>/dev/null; then
-            log_warn >&2 "Réponse de l'API invalide ou vide à la page ${page}. Arrêt de la pagination."
-            break
-        fi
-        
-        if [[ "$(echo "$response" | jq 'length')" -eq 0 ]]; then
+        if ! echo "$response" | jq empty 2>/dev/null || [[ "$(echo "$response" | jq 'length')" -eq 0 ]]; then
             break
         fi
         
@@ -133,8 +128,18 @@ check_file_exists() {
     local encoded_project_path
     encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
     
-    if curl -s --head --fail "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main" > /dev/null || \
-       curl -s --head --fail "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master" > /dev/null; then
+    # On vérifie main puis master
+    local ref="main"
+    local status_code
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=${ref}")
+    if [[ "$status_code" == "200" ]]; then
+        echo "✅"
+        return
+    fi
+
+    ref="master"
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=${ref}")
+    if [[ "$status_code" == "200" ]]; then
         echo "✅"
     else
         echo "❌"
@@ -188,33 +193,44 @@ generate_email_body() {
 send_email() {
     local subject="$1"
     local body="$2"
-    local repo_name="$3" # Paramètre ajouté pour le logging
-    local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^\*\*\(.*\)\*\*<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
+    local repo_name="$3"
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
+        return 0
+    fi
+
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
 Subject: $subject
-Content-Type: text/html; charset=UTF-8
+Content-Type: text/plain; charset=UTF-8
 MIME-Version: 1.0
 
-<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;line-height:1.6;margin:20px;color:#333}table{border-collapse:collapse;width:100%;margin-bottom:20px}th,td{border:1px solid #ddd;padding:12px;text-align:left}th{background-color:#f7f7f7}h3{color:#d9534f;border-bottom:2px solid #f0f0f0;padding-bottom:5px}hr{border:0;border-top:1px solid #eee;margin:20px 0}code{background-color:#f0f0f0;padding:2px 5px;border-radius:4px}</style></head><body>${html_body}</body></html>
+$body
 EOF
 )
 
     if [[ -n "${SMTP_SERVER:-}" ]]; then
         log_info "Utilisation du serveur SMTP ($SMTP_SERVER)..."
+        # Pour curl, le corps du message doit être dans un fichier temporaire
+        local mail_body_file
+        mail_body_file=$(mktemp)
+        echo -e "$email_content" > "$mail_body_file"
+
         local curl_opts=()
         local proto="smtp"
         if [[ "${SMTP_TLS:-}" == "true" ]]; then proto="smtps"; fi
         if [[ -n "${SMTP_USER:-}" ]] && [[ -n "${SMTP_PASS:-}" ]]; then
             curl_opts+=(--user "${SMTP_USER}:${SMTP_PASS}")
         fi
-        if ! echo -e "$email_content" | curl -s --url "${proto}://${SMTP_SERVER}:${SMTP_PORT:-587}" --mail-from "$EMAIL_FROM" --mail-rcpt "$EMAIL_TO" "${curl_opts[@]}" --upload-file -; then
+        if ! curl -s --url "${proto}://${SMTP_SERVER}:${SMTP_PORT:-25}" --mail-from "$EMAIL_FROM" --mail-rcpt "$EMAIL_TO" "${curl_opts[@]}" --upload-file "$mail_body_file"; then
             log_error "Échec de l'envoi via SMTP."
+            rm "$mail_body_file"
             return 1
         fi
+        rm "$mail_body_file"
     else
         log_info "Utilisation de sendmail..."
         if ! echo -e "$email_content" | sendmail -t; then
@@ -256,7 +272,7 @@ process_repo() {
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.0.3 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.1.0 API) ==="
     load_config
     check_dependencies
     touch "$TRACKING_FILE"
@@ -273,7 +289,6 @@ main() {
     local new_repo_count=0
     log_info "Analyse de ${project_count} projets..."
     
-    # Itérer sur chaque projet de l'array JSON de manière robuste
     echo "$public_projects_json" | jq -c '.[]' | while read -r project_json; do
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
         if ! is_repo_tracked "$repo_id"; then
@@ -298,7 +313,7 @@ main() {
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor v2.0.3
+GitLab Public Repository Monitor v2.1.0
 Usage: $0 [OPTIONS]
 Monitors for new public repositories on GitLab and notifies via email.
 Options:
@@ -311,15 +326,7 @@ fi
 
 if [[ "${1:-}" == "--dry-run" ]]; then
     log_warn "Mode DRY-RUN activé - Aucun email ne sera envoyé."
-    send_email() {
-        local subject="$1"
-        local body="$2"
-        local repo_name="$3"
-        local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-        log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
-        add_to_tracking "$repo_id"
-        return 0
-    }
+    DRY_RUN=true
 fi
 
 main "$@"
