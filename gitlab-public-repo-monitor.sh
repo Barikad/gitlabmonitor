@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  1.4
+# Version:  1.4.1
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
@@ -99,7 +99,7 @@ get_public_projects() {
     log_info "Récupération des projets publics..."
     while true; do
         local projects_on_page
-        projects_on_page=($(curl -s "${GITLAB_URL}/explore/projects?sort=latest_activity_desc&page=${page}" | grep -oP 'href="(/[^/]+/[^/]+)"' | sed 's/href="//;s/"//' | grep -vE '/-/' | sort -u))
+        projects_on_page=($(curl -s "${GITLAB_URL}/explore/projects?sort=latest_activity_desc&page=${page}" | grep -oP 'class="project-name".*?href="\K(/[^/]+/[^/]+)(?=")' | sort -u))
         if [[ ${#projects_on_page[@]} -eq 0 ]]; then break; fi
         all_projects+=("${projects_on_page[@]}")
         ((page++))
