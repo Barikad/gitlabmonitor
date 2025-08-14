@@ -18,9 +18,9 @@
 
   <g class="container">
     <!-- Header -->
-    <text x="25" y="40" class="header">Bonjour,</text>
-    <text x="25" y="65" class="header">Un nouveau dépôt GitLab accessible publiquement a été détecté : <tspan class="strong">$REPONAME</tspan>.</text>
-    <text x="25" y="90" class="header">Ceci est la première et unique notification pour ce dépôt.</text>
+    <text x="25" y="40" class="header">Hello,</text>
+    <text x="25" y="65" class="header">A new publicly accessible GitLab repository has been detected: <tspan class="strong">$REPONAME</tspan>.</text>
+    <text x="25" y="90" class="header">This is the first and only notification for this repository.</text>
 
     <!-- Table -->
     <g class="table">
@@ -32,25 +32,25 @@
       <line x1="25" y1="260" x2="725" y2="260" stroke="#ddd" />
       <line x1="200" y1="120" x2="200" y2="275" stroke="#ddd" />
 
-      <text x="40" y="143" class="label">Attribut</text>
-      <text x="215" y="143" class="label">Valeur</text>
+      <text x="40" y="143" class="label">Attribute</text>
+      <text x="215" y="143" class="label">Value</text>
       
-      <text x="40" y="178" class="label">Nom du dépôt</text>
+      <text x="40" y="178" class="label">Repository Name</text>
       <text x="215" y="178" class="value strong">corporate-website-v2</text>
       
-      <text x="40" y="213" class="label">Dernier commit par</text>
-      <text x="215" y="213" class="value">Jeanne Dupont</text>
+      <text x="40" y="213" class="label">Last commit by</text>
+      <text x="215" y="213" class="value">Jane Doe</text>
       
       <text x="40" y="248" class="label">URL</text>
       <text x="215" y="248" class="value">https://gitlab.example.com/marketing/corporate-website-v2</text>
       
-      <text x="40" y="280" class="label">Fichier LICENSE</text>
+      <text x="40" y="280" class="label">LICENSE file</text>
       <text x="215" y="280" class="check-ok">✅</text>
       
-      <text x="40" y="305" class="label">Fichier README.md</text>
+      <text x="40" y="305" class="label">README.md file</text>
       <text x="215" y="305" class="check-ok">✅</text>
       
-      <text x="40" y="330" class="label">Fichier CONTRIBUTING.md</text>
+      <text x="40" y="330" class="label">CONTRIBUTING.md file</text>
       <text x="215" y="330" class="check-ko">❌</text>
     </g>
     
@@ -58,15 +58,15 @@
 
     <!-- Warning Section -->
     <g>
-      <text x="25" y="390" class="warning-header">⚠️ Rappel des règles de publication</text>
-      <text x="40" y="420" class="list-item"><tspan font-weight="bold">1. Aucune information sensible :</tspan> Pas de secrets, d'identifiants, d'IP internes, etc.</text>
-      <text x="55" y="438" class="list-item">Utilisez des outils comme FindSecretLeak pour vérifier.</text>
+      <text x="25" y="390" class="warning-header">⚠️ Publication Policy Reminder</text>
+      <text x="40" y="420" class="list-item"><tspan font-weight="bold">1. No sensitive information:</tspan> No secrets, credentials, internal IPs, etc.</text>
+      <text x="55" y="438" class="list-item">Use tools like FindSecretLeak to check.</text>
       
-      <text x="40" y="463" class="list-item"><tspan font-weight="bold">2. Code générique :</tspan> Le code doit être réutilisable et non spécifique à un environnement.</text>
+      <text x="40" y="463" class="list-item"><tspan font-weight="bold">2. Generic code:</tspan> Code must be reusable and not environment-specific.</text>
       
-      <text x="40" y="488" class="list-item"><tspan font-weight="bold">3. Licence AGPLv3 :</tspan> Tout dépôt public doit être sous cette licence.</text>
+      <text x="40" y="488" class="list-item"><tspan font-weight="bold">3. AGPLv3 License:</tspan> All public repositories must use this license.</text>
       
-      <text x="40" y="513" class="list-item"><tspan font-weight="bold">4. Fichiers `CONTRIBUTING.md` et `README.md` :</tspan> Doivent être présents et de qualité.</text>
+      <text x="40" y="513" class="list-item"><tspan font-weight="bold">4. `CONTRIBUTING.md` and `README.md` files:</tspan> Must be present and of high quality.</text>
     </g>
   </g>
 </svg>

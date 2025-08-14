@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-1.1-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
+[![Version](https://img.shields.io/badge/Version-1.3-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
 
 Un script shell robuste pour surveiller automatiquement l'apparition de nouveaux dépôts publics sur une instance GitLab et envoyer des notifications par email lors de leur première détection.
 
@@ -100,6 +100,16 @@ Pour une surveillance continue, ajoutez une entrée à votre crontab :
 # Exécuter le script tous les jours à 8h00
 0 8 * * * /path/to/gitlab-public-repo-monitor.sh >> /var/log/gitlab-monitor.log 2>&1
 ```
+
+## 📊 Exemple de Notification
+
+Voici un aperçu de l'email de notification généré par le script.
+
+#### Version Française
+![Exemple de rapport en français](exemple_rapport.svg)
+
+#### Version Anglaise
+![Example of an English report](example_report.svg)
 
 ---
 
