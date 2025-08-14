@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.0.2
+# Version:  2.0.3
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
@@ -188,8 +188,9 @@ generate_email_body() {
 send_email() {
     local subject="$1"
     local body="$2"
+    local repo_name="$3" # Paramètre ajouté pour le logging
     local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
+    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^\*\*\(.*\)\*\*<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
@@ -245,17 +246,17 @@ process_repo() {
     local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
     
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
+    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
     
     local body; body=$(generate_email_body "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing")
     
-    if [[ -n "$body" ]] && send_email "$subject" "$body"; then
+    if [[ -n "$body" ]] && send_email "$subject" "$body" "$repo_name"; then
         add_to_tracking "$repo_id"
     fi
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.0.2 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.0.3 API) ==="
     load_config
     check_dependencies
     touch "$TRACKING_FILE"
@@ -297,7 +298,7 @@ main() {
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor v2.0.2
+GitLab Public Repository Monitor v2.0.3
 Usage: $0 [OPTIONS]
 Monitors for new public repositories on GitLab and notifies via email.
 Options:
@@ -311,6 +312,9 @@ fi
 if [[ "${1:-}" == "--dry-run" ]]; then
     log_warn "Mode DRY-RUN activé - Aucun email ne sera envoyé."
     send_email() {
+        local subject="$1"
+        local body="$2"
+        local repo_name="$3"
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
         log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
         add_to_tracking "$repo_id"
