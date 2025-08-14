@@ -1,8 +1,19 @@
 #!/bin/bash
-
+#
 #==============================================================================
 # GitLab Public Repository Monitor
-# Script de surveillance des dépôts publics GitLab avec notification par email
+#
+# Auteur:   Joachim COQBLIN + un peu de LLM
+# Licence:  AGPLv3
+# Version:  1.1
+# URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
+#
+# Description:
+# Ce script surveille une instance GitLab pour détecter les nouveaux dépôts
+# publics. Il envoie une notification par email lors de la première
+# détection d'un dépôt, en utilisant soit sendmail (par défaut), soit un
+# serveur SMTP externe si configuré.
+#
 #==============================================================================
 
 set -euo pipefail
@@ -11,7 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.conf"
 TRACKING_FILE="${SCRIPT_DIR}/tracked_repos.txt"
-TEMP_DIR="/tmp/gitlab-monitor-$"$$
+TEMP_DIR="/tmp/gitlab-monitor-$$"
 LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log"
 
 # Couleurs pour les logs
@@ -26,10 +37,10 @@ NC='\033[0m' # No Color
 #==============================================================================
 
 log() {
-    local level="$1"
-    shift
+    local level="$1"; shift
     local message="$*"
-    local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo -e "${timestamp} [${level}] ${message}" | tee -a "${LOG_FILE}"
 }
 
@@ -52,6 +63,11 @@ check_dependencies() {
     local deps=("curl" "sendmail")
     local missing=()
     
+    # Si SMTP est configuré, sendmail n'est pas un prérequis.
+    if [[ -n "${SMTP_SERVER:-}" ]]; then
+        deps=("curl")
+    fi
+
     for dep in "${deps[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
             missing+=("$dep")
@@ -60,7 +76,7 @@ check_dependencies() {
     
     if [[ ${#missing[@]} -gt 0 ]]; then
         log_error "Dépendances manquantes: ${missing[*]}"
-        log_error "Installez-les avec: apt-get install curl sendmail"
+        log_error "Veuillez les installer pour continuer."
         exit 1
     fi
 }
@@ -72,25 +88,25 @@ check_dependencies() {
 load_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
         log_error "Fichier de configuration introuvable: $CONFIG_FILE"
-        log_error "Créez le fichier avec: cp config.conf.example config.conf"
+        log_error "Veuillez créer le fichier à partir de 'config.conf.example'."
         exit 1
     fi
     
-    # Chargement des variables de configuration
+    # Charger les variables de configuration
     source "$CONFIG_FILE"
     
-    # Vérification des variables obligatoires
+    # Vérifier les variables obligatoires
     local required_vars=("GITLAB_URL" "EMAIL_TO" "EMAIL_FROM" "NOTIFICATION_LANGUAGE")
     for var in "${required_vars[@]}"; do
-        if [[ -z "${!var:-""}" ]]; then
-            log_error "Variable de configuration manquante: $var"
+        if [[ -z "${!var:-}" ]]; then
+            log_error "Variable de configuration manquante dans '$CONFIG_FILE': $var"
             exit 1
         fi
     done
     
-    # Validation de la langue
+    # Valider la langue
     if [[ "$NOTIFICATION_LANGUAGE" != "FR" && "$NOTIFICATION_LANGUAGE" != "EN" ]]; then
-        log_error "NOTIFICATION_LANGUAGE doit être 'FR' ou 'EN', reçu: $NOTIFICATION_LANGUAGE"
+        log_error "La variable NOTIFICATION_LANGUAGE doit être 'FR' ou 'EN'."
         exit 1
     fi
 }
@@ -102,34 +118,24 @@ load_config() {
 get_public_projects_page() {
     local page="$1"
     local url="${GITLAB_URL}/explore/projects?sort=latest_activity_desc&page=${page}"
-    
-    # Extrait les chemins des projets depuis la page d'exploration
     curl -s "$url" | grep -oP 'href="(/[^/]+/[^/]+)"' | sed 's/href="//;s/"//' | grep -vE '/-/' | sort -u
 }
 
 get_public_projects() {
     local page=1
     local all_projects=()
-    
     log_info "Récupération de la liste des projets publics..."
-    
     while true; do
-        local projects_on_page=($(get_public_projects_page "$page"))
-        
-        if [[ ${#projects_on_page[@]} -eq 0 ]]; then
-            break
-        fi
-        
+        local projects_on_page
+        projects_on_page=($(get_public_projects_page "$page"))
+        if [[ ${#projects_on_page[@]} -eq 0 ]]; then break; fi
         all_projects+=("${projects_on_page[@]}")
         ((page++))
-        
-        # Limite de sécurité pour éviter les boucles infinies
         if [[ $page -gt 50 ]]; then
-            log_warn "Limite de pages atteinte (50), arrêt du scan."
+            log_warn "Limite de 50 pages atteinte, arrêt du scan pour éviter une boucle infinie."
             break
         fi
     done
-    
     log_info "Trouvé ${#all_projects[@]} projets publics uniques."
     printf '%s\n' "${all_projects[@]}" | sort -u
 }
@@ -138,18 +144,16 @@ get_project_details() {
     local project_path="$1"
     local project_url="${GITLAB_URL}${project_path}"
     local page_content
-    page_content=$(curl -s "$project_url")
+    page_content=$(curl -sL "$project_url")
     
-    # Extraction du nom du projet
     local repo_name
     repo_name=$(echo "$page_content" | grep -oP '<title>[^<]*' | sed 's/<title>//' | cut -d'·' -f1 | xargs)
     
-    # Extraction du dernier auteur de commit
     local repo_dev
     repo_dev=$(echo "$page_content" | grep -oP 'authored by <a[^>]*>([^<]+)</a>' | sed -e 's/.*>\(.*\)<.*/\1/' | xargs)
     
-    if [[ -z "$repo_name" ]]; then repo_name="Inconnu"; fi
-    if [[ -z "$repo_dev" ]]; then repo_dev="Inconnu"; fi
+    [[ -z "$repo_name" ]] && repo_name="Inconnu"
+    [[ -z "$repo_dev" ]] && repo_dev="Inconnu"
     
     echo "$repo_name|$project_url|$repo_dev"
 }
@@ -168,7 +172,7 @@ check_file_exists() {
 }
 
 #==============================================================================
-# Gestion du suivi des dépôts
+# Gestion du suivi
 #==============================================================================
 
 is_repo_tracked() {
@@ -186,27 +190,22 @@ add_to_tracking() {
 }
 
 #==============================================================================
-# Génération et envoi des emails
+# Envoi des emails
 #==============================================================================
 
 generate_email_body() {
-    local repo_name="$1"
-    local repo_dev="$2"
-    local repo_url="$3"
-    local url_license="$4"
-    local url_readme="$5"
-    local url_contributing="$6"
+    local repo_name="$1"; local repo_dev="$2"; local repo_url="$3"
+    local has_license="$4"; local has_readme="$5"; local has_contributing="$6"
     
     local email_template_var="EMAIL_TEMPLATE_${NOTIFICATION_LANGUAGE}"
     local email_template="${!email_template_var}"
     
-    # Remplacement des variables
     email_template="${email_template//\$REPONAME/$repo_name}"
     email_template="${email_template//\$REPODEV/$repo_dev}"
     email_template="${email_template//\$REPOURL/$repo_url}"
-    email_template="${email_template//\$URLLICENSE/$url_license}"
-    email_template="${email_template//\$URLREADME/$url_readme}"
-    email_template="${email_template//\$URLCONTRIBUTING/$url_contributing}"
+    email_template="${email_template//\$URLLICENSE/$has_license}"
+    email_template="${email_template//\$URLREADME/$has_readme}"
+    email_template="${email_template//\$URLCONTRIBUTING/$has_contributing}"
     
     echo "$email_template"
 }
@@ -215,50 +214,45 @@ send_email() {
     local subject="$1"
     local body="$2"
     
-    # Conversion basique de Markdown en HTML pour l'email
     local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/'
-                               -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/'
-                               -e 's/^#### \(.*\)<br>/<h4>\1<\/h4>/'
-                               -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/'
-                               -e 's/`\(.*\)`/<code>\1<\/code>/g'
-                               -e 's|---<br>|<hr>|')
+    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^\*\*\(.*\)\*\*<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---<br>|<hr>|')
 
-    local email_content=$(cat <<EOF
+    local email_content
+    email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
 Subject: $subject
 Content-Type: text/html; charset=UTF-8
 MIME-Version: 1.0
 
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body { font-family: sans-serif; line-height: 1.6; margin: 20px; color: #333; }
-        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f7f7f7; }
-        h3 { color: #d9534f; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
-        hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
-        code { background-color: #f0f0f0; padding: 2px 5px; border-radius: 4px; }
-    </style>
-</head>
-<body>
-${html_body}
-</body>
-</html>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;line-height:1.6;margin:20px;color:#333}table{border-collapse:collapse;width:100%;margin-bottom:20px}th,td{border:1px solid #ddd;padding:12px;text-align:left}th{background-color:#f7f7f7}h3{color:#d9534f;border-bottom:2px solid #f0f0f0;padding-bottom:5px}hr{border:0;border-top:1px solid #eee;margin:20px 0}code{background-color:#f0f0f0;padding:2px 5px;border-radius:4px}</style></head><body>${html_body}</body></html>
 EOF
 )
-    
-    if echo -e "$email_content" | sendmail -t; then
-        log_success "Email envoyé avec succès pour le dépôt '$repo_name'"
-        return 0
+
+    if [[ -n "${SMTP_SERVER:-}" ]]; then
+        log_info "Utilisation du serveur SMTP ($SMTP_SERVER) pour l'envoi."
+        local curl_opts=()
+        local proto="smtp"
+        if [[ "${SMTP_TLS:-}" == "true" ]]; then proto="smtps"; fi
+        
+        if [[ -n "${SMTP_USER:-}" ]] && [[ -n "${SMTP_PASS:-}" ]]; then
+            curl_opts+=(--user "${SMTP_USER}:${SMTP_PASS}")
+        fi
+
+        if ! echo -e "$email_content" | curl -s --url "${proto}://${SMTP_SERVER}:${SMTP_PORT:-587}" --mail-from "$EMAIL_FROM" --mail-rcpt "$EMAIL_TO" "${curl_opts[@]}" --upload-file -; then
+            log_error "Échec de l'envoi via SMTP pour le dépôt '$repo_name'."
+            return 1
+        fi
     else
-        log_error "Échec de l'envoi de l'email pour le dépôt '$repo_name'"
-        return 1
+        log_info "Utilisation de sendmail pour l'envoi."
+        if ! echo -e "$email_content" | sendmail -t; then
+            log_error "Échec de l'envoi via sendmail pour le dépôt '$repo_name'."
+            return 1
+        fi
     fi
+    
+    log_success "Email envoyé avec succès pour le dépôt '$repo_name'."
+    return 0
 }
 
 #==============================================================================
@@ -267,7 +261,6 @@ EOF
 
 process_repo() {
     local project_path="$1"
-    
     log_info "Traitement du nouveau projet: $project_path"
     
     local project_details
@@ -279,21 +272,16 @@ process_repo() {
         return
     fi
     
-    local has_license
-has_license=$(check_file_exists "$project_path" "LICENSE")
-    local has_readme
-has_readme=$(check_file_exists "$project_path" "README.md")
-    local has_contributing
-has_contributing=$(check_file_exists "$project_path" "CONTRIBUTING.md")
+    local has_license; has_license=$(check_file_exists "$project_path" "LICENSE")
+    local has_readme; has_readme=$(check_file_exists "$project_path" "README.md")
+    local has_contributing; has_contributing=$(check_file_exists "$project_path" "CONTRIBUTING.md")
     
     log_info "Détails: Nom='$repo_name', Dev='$repo_dev', URL='$repo_url'"
     
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject
-    subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
     
-    local body
-    body=$(generate_email_body "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing")
+    local body; body=$(generate_email_body "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing")
     
     if send_email "$subject" "$body"; then
         add_to_tracking "$project_path"
@@ -301,20 +289,18 @@ has_contributing=$(check_file_exists "$project_path" "CONTRIBUTING.md")
 }
 
 main() {
-    log_info "=== Début de l'exécution du monitoring GitLab ==="
-    
-    check_dependencies
+    log_info "=== Début du monitoring GitLab ==="
     load_config
+    check_dependencies
     
     mkdir -p "$TEMP_DIR"
     touch "$TRACKING_FILE"
     
-    local public_projects
-    public_projects=($(get_public_projects))
+    local public_projects; public_projects=($(get_public_projects))
     
     if [[ ${#public_projects[@]} -eq 0 ]]; then
-        log_info "Aucun projet public trouvé ou erreur lors de la récupération."
-        log_info "=== Fin de l'exécution du monitoring GitLab ==="
+        log_info "Aucun projet public trouvé."
+        log_info "=== Fin du monitoring GitLab ==="
         exit 0
     fi
     
@@ -330,12 +316,12 @@ main() {
     done
     
     if [[ $new_repo_count -eq 0 ]]; then
-        log_info "Aucun nouveau dépôt public à notifier."
+        log_info "Aucun nouveau dépôt à notifier."
     else
-        log_success "$new_repo_count nouveaux dépôts publics traités."
+        log_success "$new_repo_count nouveaux dépôts traités."
     fi
     
-    log_info "=== Fin de l'exécution du monitoring GitLab ==="
+    log_info "=== Fin du monitoring GitLab ==="
 }
 
 #==============================================================================
@@ -344,43 +330,42 @@ main() {
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor
+GitLab Public Repository Monitor v1.1
 
 Usage: $0 [OPTIONS]
 
-Un script shell pour surveiller les nouveaux dépôts publics sur GitLab.
+Surveille les nouveaux dépôts publics sur GitLab et notifie par email.
 
 Options:
   -h, --help     Afficher cette aide.
-  --dry-run      Exécute le script sans envoyer d'emails. Utile pour le test.
-  --config FILE  Spécifier un chemin personnalisé pour le fichier de configuration.
+  --dry-run      Exécuter le script sans envoyer d'emails (utile pour tester).
+  --config FILE  Spécifier un chemin de configuration personnalisé.
 
-Fichiers requis:
-  config.conf         Fichier de configuration (créer depuis config.conf.example).
-  tracked_repos.txt   Base de données texte des dépôts déjà notifiés (créé automatiquement).
-  gitlab-monitor.log  Fichier de log des opérations (créé automatiquement).
-
+Fichiers:
+  config.conf         Fichier de configuration principal.
+  tracked_repos.txt   Base de données des dépôts notifiés (auto-généré).
+  gitlab-monitor.log  Fichier de log des opérations (auto-généré).
 EOF
     exit 0
 fi
 
-# Surcharge de la fonction d'envoi d'email pour le mode dry-run
+# Surcharge pour le mode dry-run
 if [[ "${1:-}" == "--dry-run" ]]; then
     log_warn "Mode DRY-RUN activé - Aucun email ne sera envoyé."
     send_email() {
-        log_info "DRY-RUN: Email pour le dépôt '$repo_name' non envoyé."
-        add_to_tracking "$project_path" # On simule que le suivi a été fait
+        log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
+        add_to_tracking "$project_path"
         return 0
     }
 fi
 
-# Gestion du fichier de configuration personnalisé
+# Gestion du fichier de config personnalisé
 if [[ "${1:-}" == "--config" ]]; then
     if [[ -n "${2:-}" ]] && [[ -f "$2" ]]; then
         CONFIG_FILE="$2"
-        log_info "Utilisation du fichier de configuration personnalisé: $CONFIG_FILE"
+        log_info "Utilisation du fichier de configuration: $CONFIG_FILE"
     else
-        log_error "Fichier de configuration spécifié non trouvé: ${2:-}"
+        log_error "Fichier de configuration non trouvé: ${2:-}"
         exit 1
     fi
 fi
