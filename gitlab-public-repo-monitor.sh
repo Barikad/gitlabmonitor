@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.2.0
+# Version:  2.2.1
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
@@ -109,12 +109,12 @@ check_file_exists() {
     local file_path="$2"
     local encoded_project_path
     encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
-    local ref="main"
+    
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=${ref}")
+    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
     if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
-    ref="master"
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=${ref}")
+
+    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
     if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
 }
 
@@ -136,27 +136,18 @@ add_to_tracking() {
 
 markdown_to_html() {
     local text="$1"
-    # Convertir les titres, le gras, les listes et surtout les tableaux
-    text=$(echo "$text" | sed -e 's|---|<hr>|g')
-    text=$(echo "$text" | sed -e 's|### \(.*\)|\n<h3>\1</h3>|g')
-    text=$(echo "$text" | sed -e 's|\*\*\([^*]*\)\*\*|<strong>\1</strong>|g')
-    text=$(echo "$text" | sed -e 's|^1\. \(.*\)|\n<ol><li>\1</li></ol>|g' -e 's|^[0-9]\. \(.*\)|\n<li>\1</li>|g')
-    
-    # Traitement des tableaux
+    text=$(echo "$text" | sed -e 's|---|<hr>|g' -e 's|### \(.*\)|\n<h3>\1</h3>|g' -e 's|\*\*\([^*]*\)\*\*|<strong>\1</strong>|g')
     local in_table=false
     local html_table=""
     while IFS= read -r line; do
         if [[ "$line" == *"|"* && "$in_table" == false ]]; then
             in_table=true
             html_table+="<table>"
-            # Ligne d'en-tête
             line=$(echo "$line" | sed -e 's/| */<th>/g' -e 's/ *<th>/<tr><th>/g' -e 's/ *$/<\/th><\/tr>/g')
             html_table+="$line"
         elif [[ "$line" == *"|---"* && "$in_table" == true ]]; then
-            # On ignore la ligne de séparation Markdown
             continue
         elif [[ "$line" == *"|"* && "$in_table" == true ]]; then
-            # Lignes de données
             line=$(echo "$line" | sed -e 's/| */<td>/g' -e 's/ *<td>/<tr><td>/g' -e 's/ *$/<\/td><\/tr>/g')
             html_table+="$line"
         elif [[ "$line" != *"|"* && "$in_table" == true ]]; then
@@ -181,11 +172,8 @@ send_email() {
         return 0
     fi
 
-    local html_body
-    html_body=$(markdown_to_html "$body")
-
-    local email_content
-    email_content=$(cat <<EOF
+    local html_body; html_body=$(markdown_to_html "$body")
+    local email_content; email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
 Subject: $subject
@@ -217,44 +205,57 @@ EOF
 # Main Logic
 #==============================================================================
 
-process_repo() {
-    local project_json="$1"
-    local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-    local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-    local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-    local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-    local repo_dev; repo_dev=$(echo "$project_json" | jq -r '.owner.name // "N/A"')
+process_and_track_projects() {
+    local new_repo_count=0
+    while read -r project_json; do
+        local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
+        if ! is_repo_tracked "$repo_id"; then
+            log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
+            
+            local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
+            local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
+            local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+            local repo_dev; repo_dev=$(echo "$project_json" | jq -r '.owner.name // "N/A"')
 
-    log_info "Traitement du projet: $repo_name (ID: $repo_id)"
+            log_info "Traitement du projet: $repo_name (ID: $repo_id)"
 
-    local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
-    local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
-    local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+            local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
+            local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
+            local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+            
+            local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
+            local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+            
+            local lang_code; lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
+            local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
+            if [[ ! -f "$template_file" ]]; then
+                log_error "Fichier de template introuvable: $template_file"
+                continue
+            fi
+            local body; body=$(cat "$template_file")
+            body="${body//\$REPONAME/$repo_name}"
+            body="${body//\$REPODEV/$repo_dev}"
+            body="${body//\$REPOURL/$repo_url}"
+            body="${body//\$URLLICENSE/$has_license}"
+            body="${body//\$URLREADME/$has_readme}"
+            body="${body//\$URLCONTRIBUTING/$has_contributing}"
+            
+            if send_email "$subject" "$body" "$repo_name"; then
+                add_to_tracking "$repo_id"
+            fi
+            ((new_repo_count++))
+        fi
+    done
     
-    local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
-    
-    local lang_code; lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
-    local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
-    if [[ ! -f "$template_file" ]]; then
-        log_error "Fichier de template introuvable: $template_file"
-        return
-    fi
-    local body; body=$(cat "$template_file")
-    body="${body//\$REPONAME/$repo_name}"
-    body="${body//\$REPODEV/$repo_dev}"
-    body="${body//\$REPOURL/$repo_url}"
-    body="${body//\$URLLICENSE/$has_license}"
-    body="${body//\$URLREADME/$has_readme}"
-    body="${body//\$URLCONTRIBUTING/$has_contributing}"
-    
-    if send_email "$subject" "$body" "$repo_name"; then
-        add_to_tracking "$repo_id"
+    if [[ $new_repo_count -eq 0 ]]; then
+        log_info "Aucun nouveau dépôt à notifier."
+    else
+        log_success "$new_repo_count nouveaux dépôts traités."
     fi
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.2.0 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.2.1 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -266,31 +267,8 @@ main() {
         exit 0
     fi
     
-    local new_repo_count=0
     log_info "Analyse de ${project_count} projets..."
-    
-    # Utilisation d'un sous-shell pour la boucle afin de garantir la portée des variables
-    (
-        echo "$public_projects_json" | jq -c '.[]' | while read -r project_json; do
-            local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-            if ! is_repo_tracked "$repo_id"; then
-                log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-                process_repo "$project_json"
-                ((new_repo_count++))
-            fi
-        done
-        # Exporter le compte pour le script parent
-        echo "$new_repo_count" > /tmp/gitlab_monitor_count
-    )
-    
-    new_repo_count=$(cat /tmp/gitlab_monitor_count)
-    rm /tmp/gitlab_monitor_count
-
-    if [[ $new_repo_count -eq 0 ]]; then
-        log_info "Aucun nouveau dépôt à notifier."
-    else
-        log_success "$new_repo_count nouveaux dépôts traités."
-    fi
+    echo "$public_projects_json" | jq -c '.[]' | process_and_track_projects
     
     log_info "=== Fin du monitoring GitLab. ==="
 }
