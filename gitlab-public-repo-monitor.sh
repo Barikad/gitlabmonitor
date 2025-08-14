@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.0.1
+# Version:  2.0.2
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
@@ -189,7 +189,7 @@ send_email() {
     local subject="$1"
     local body="$2"
     local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^\*\*\(.*\)\*\*<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
+    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---| <hr>|')
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
@@ -245,7 +245,7 @@ process_repo() {
     local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
     
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
     
     local body; body=$(generate_email_body "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing")
     
@@ -255,7 +255,7 @@ process_repo() {
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.0.1 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.0.2 API) ==="
     load_config
     check_dependencies
     touch "$TRACKING_FILE"
@@ -272,7 +272,8 @@ main() {
     local new_repo_count=0
     log_info "Analyse de ${project_count} projets..."
     
-    for project_json in $(echo "$public_projects_json" | jq -c '.[]'); do
+    # Itérer sur chaque projet de l'array JSON de manière robuste
+    echo "$public_projects_json" | jq -c '.[]' | while read -r project_json; do
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
         if ! is_repo_tracked "$repo_id"; then
             log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
@@ -296,7 +297,7 @@ main() {
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor v2.0.1
+GitLab Public Repository Monitor v2.0.2
 Usage: $0 [OPTIONS]
 Monitors for new public repositories on GitLab and notifies via email.
 Options:

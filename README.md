@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-2.0.1-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
+[![Version](https://img.shields.io/badge/Version-2.0.2-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
 
 Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveiller l'apparition de nouveaux dépôts publics et envoyer des notifications par email.
 
