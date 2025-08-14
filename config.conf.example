@@ -101,6 +101,7 @@ Ceci est la première et unique notification pour ce dépôt.
 2.  **Code générique** : Le code doit être réutilisable et non spécifique à un environnement.
 3.  **Licence AGPLv3** : Tout dépôt public doit être sous cette licence.
 4.  **Fichiers `CONTRIBUTING.md` et `README.md`** : Doivent être présents et de qualité.
+
 EOF
 
 #------------------------------------------------------------------------------
@@ -131,4 +132,5 @@ This is the first and only notification for this repository.
 2.  **Generic code**: Code must be reusable and not environment-specific.
 3.  **AGPLv3 License**: All public repositories must use this license.
 4.  **`CONTRIBUTING.md` and `README.md` files**: Must be present and of high quality.
+
 EOF
