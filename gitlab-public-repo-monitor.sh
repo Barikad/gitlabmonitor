@@ -5,16 +5,16 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.2.1
+# Version:  2.3.0
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description (FR):
 # Ce script utilise l'API GitLab pour surveiller les nouveaux dépôts publics
-# et envoie une notification par email au format HTML.
+# et envoie une notification par email au format HTML propre.
 #
 # Description (EN):
 # This script uses the GitLab API to monitor for new public repositories
-# and sends an HTML-formatted email notification.
+# and sends a clean HTML-formatted email notification.
 #
 #==============================================================================
 
@@ -56,29 +56,18 @@ log_success() { log "${GREEN}SUCCESS${NC}" "$@"; }
 #==============================================================================
 
 load_config_and_check_deps() {
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        log_error "Fichier de configuration introuvable: $CONFIG_FILE"
-        exit 1
-    fi
+    if [[ ! -f "$CONFIG_FILE" ]]; then log_error "Fichier de configuration introuvable: $CONFIG_FILE"; exit 1; fi
     source "$CONFIG_FILE"
     
     local required_vars=("GITLAB_URL" "EMAIL_TO" "EMAIL_FROM" "NOTIFICATION_LANGUAGE")
     for var in "${required_vars[@]}"; do
-        if [[ -z "${!var:-}" ]]; then
-            log_error "Variable de configuration manquante: $var"
-            exit 1
-        fi
+        if [[ -z "${!var:-}" ]]; then log_error "Variable de configuration manquante: $var"; exit 1; fi
     done
 
     local deps=("curl" "jq" "sendmail")
-    if [[ -n "${SMTP_SERVER:-}" ]]; then
-        deps=("curl" "jq")
-    fi
+    if [[ -n "${SMTP_SERVER:-}" ]]; then deps=("curl" "jq"); fi
     for dep in "${deps[@]}"; do
-        if ! command -v "$dep" &> /dev/null; then
-            log_error "Dépendance manquante / Missing dependency: ${dep}"
-            exit 1
-        fi
+        if ! command -v "$dep" &> /dev/null; then log_error "Dépendance manquante: ${dep}"; exit 1; fi
     done
 }
 
@@ -87,21 +76,29 @@ load_config_and_check_deps() {
 #==============================================================================
 
 get_public_projects_from_api() {
-    local page=1
-    local all_projects_json="[]"
     log_info >&2 "Récupération des projets publics via l'API..."
-    while true; do
-        local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=created_at&sort=desc&per_page=100&page=${page}"
-        local response
-        response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
-        if ! echo "$response" | jq empty 2>/dev/null || [[ "$(echo "$response" | jq 'length')" -eq 0 ]]; then
-            break
-        fi
-        all_projects_json=$(echo "$all_projects_json" "$response" | jq -s 'add')
-        ((page++))
-    done
-    log_info >&2 "Trouvé $(echo "$all_projects_json" | jq 'length') projets publics."
-    echo "$all_projects_json"
+    local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=last_activity_at&sort=desc&per_page=100"
+    local response
+    response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
+    if ! echo "$response" | jq empty 2>/dev/null; then
+        log_error >&2 "Réponse de l'API invalide."
+        echo "[]"
+    else
+        log_info >&2 "Trouvé $(echo "$response" | jq 'length') projets publics."
+        echo "$response"
+    fi
+}
+
+get_last_committer() {
+    local project_id="$1"
+    local api_url="${GITLAB_URL}/api/v4/projects/${project_id}/repository/commits?per_page=1"
+    local response
+    response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
+    if echo "$response" | jq -e '.[0].author_name' > /dev/null; then
+        echo "$response" | jq -r '.[0].author_name'
+    else
+        echo "N/A"
+    fi
 }
 
 check_file_exists() {
@@ -109,11 +106,9 @@ check_file_exists() {
     local file_path="$2"
     local encoded_project_path
     encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
-    
     local status_code
     status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
     if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
-
     status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
     if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
 }
@@ -135,31 +130,49 @@ add_to_tracking() {
 #==============================================================================
 
 markdown_to_html() {
-    local text="$1"
-    text=$(echo "$text" | sed -e 's|---|<hr>|g' -e 's|### \(.*\)|\n<h3>\1</h3>|g' -e 's|\*\*\([^*]*\)\*\*|<strong>\1</strong>|g')
+    local markdown_text="$1"
+    local html=""
     local in_table=false
-    local html_table=""
+
     while IFS= read -r line; do
         if [[ "$line" == *"|"* && "$in_table" == false ]]; then
             in_table=true
-            html_table+="<table>"
-            line=$(echo "$line" | sed -e 's/| */<th>/g' -e 's/ *<th>/<tr><th>/g' -e 's/ *$/<\/th><\/tr>/g')
-            html_table+="$line"
+            html+="<table>\n"
+            # Header row
+            local header_line="<tr>"
+            while IFS='|' read -ra cols; do
+                for col in "${cols[@]}"; do
+                    header_line+="<th>${col// /}</th>"
+                done
+            done <<< "$line"
+            header_line+="</tr>\n"
+            html+="$header_line"
         elif [[ "$line" == *"|---"* && "$in_table" == true ]]; then
             continue
         elif [[ "$line" == *"|"* && "$in_table" == true ]]; then
-            line=$(echo "$line" | sed -e 's/| */<td>/g' -e 's/ *<td>/<tr><td>/g' -e 's/ *$/<\/td><\/tr>/g')
-            html_table+="$line"
+            # Data row
+            local data_line="<tr>"
+            while IFS='|' read -ra cols; do
+                for col in "${cols[@]}"; do
+                    data_line+="<td>${col// /}</td>"
+                done
+            done <<< "$line"
+            data_line+="</tr>\n"
+            html+="$data_line"
         elif [[ "$line" != *"|"* && "$in_table" == true ]]; then
             in_table=false
-            html_table+="</table>"
-            html_table+="$line<br>"
+            html+="</table>\n"
+            html+="${line}<br>\n"
         else
-            html_table+="$line<br>"
+            line=$(echo "$line" | sed 's|### \(.*\)|\n<h3>\1</h3>|g' | sed 's|\*\*\([^*]*\)\*\*|<strong>\1</strong>|g' | sed 's|---| <hr>|g')
+            html+="${line}<br>\n"
         fi
-    done <<< "$text"
-    if [[ "$in_table" == true ]]; then html_table+="</table>"; fi
-    echo "$html_table"
+    done <<< "$markdown_text"
+
+    if [[ "$in_table" == true ]]; then
+        html+="</table>\n"
+    fi
+    echo "$html"
 }
 
 send_email() {
@@ -192,22 +205,29 @@ EOF
         echo -e "$email_content" | sendmail -t
     fi
 
-    if [[ $? -eq 0 ]]; then
-        log_success "Email envoyé pour '$repo_name'."
-        return 0
-    else
-        log_error "Échec de l'envoi de l'email pour '$repo_name'."
-        return 1
-    fi
+    if [[ $? -eq 0 ]]; then log_success "Email envoyé pour '$repo_name'."; return 0;
+    else log_error "Échec de l'envoi de l'email pour '$repo_name'."; return 1; fi
 }
 
 #==============================================================================
 # Main Logic
 #==============================================================================
 
-process_and_track_projects() {
+main() {
+    log_info "=== Début du monitoring GitLab (v2.3.0 API) ==="
+    load_config_and_check_deps
+    touch "$TRACKING_FILE"
+    
+    local public_projects_json; public_projects_json=$(get_public_projects_from_api)
+    local project_count; project_count=$(echo "$public_projects_json" | jq 'length')
+    
+    if [[ "$project_count" -eq 0 ]]; then log_info "Aucun projet public trouvé."; exit 0; fi
+    
+    log_info "Analyse de ${project_count} projets..."
     local new_repo_count=0
-    while read -r project_json; do
+    
+    # Boucle robuste avec process substitution pour éviter les problèmes de sous-shell
+    while IFS= read -r project_json; do
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
         if ! is_repo_tracked "$repo_id"; then
             log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
@@ -215,23 +235,19 @@ process_and_track_projects() {
             local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
             local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
             local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-            local repo_dev; repo_dev=$(echo "$project_json" | jq -r '.owner.name // "N/A"')
-
-            log_info "Traitement du projet: $repo_name (ID: $repo_id)"
+            local repo_dev; repo_dev=$(get_last_committer "$repo_id")
 
             local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
             local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
             local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
             
             local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-            local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+            local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
             
             local lang_code; lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
             local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
-            if [[ ! -f "$template_file" ]]; then
-                log_error "Fichier de template introuvable: $template_file"
-                continue
-            fi
+            if [[ ! -f "$template_file" ]]; then log_error "Template introuvable: $template_file"; continue; fi
+            
             local body; body=$(cat "$template_file")
             body="${body//\$REPONAME/$repo_name}"
             body="${body//\$REPODEV/$repo_dev}"
@@ -245,30 +261,13 @@ process_and_track_projects() {
             fi
             ((new_repo_count++))
         fi
-    done
-    
+    done < <(echo "$public_projects_json" | jq -c '.[]')
+
     if [[ $new_repo_count -eq 0 ]]; then
         log_info "Aucun nouveau dépôt à notifier."
     else
         log_success "$new_repo_count nouveaux dépôts traités."
     fi
-}
-
-main() {
-    log_info "=== Début du monitoring GitLab (v2.2.1 API) ==="
-    load_config_and_check_deps
-    touch "$TRACKING_FILE"
-    
-    local public_projects_json; public_projects_json=$(get_public_projects_from_api)
-    local project_count; project_count=$(echo "$public_projects_json" | jq 'length')
-    
-    if [[ "$project_count" -eq 0 ]]; then
-        log_info "Aucun projet public trouvé."
-        exit 0
-    fi
-    
-    log_info "Analyse de ${project_count} projets..."
-    echo "$public_projects_json" | jq -c '.[]' | process_and_track_projects
     
     log_info "=== Fin du monitoring GitLab. ==="
 }
