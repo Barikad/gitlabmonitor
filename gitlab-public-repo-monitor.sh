@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  1.1
+# Version:  1.2
 # URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 #
 # Description:
@@ -14,18 +14,23 @@
 # détection d'un dépôt, en utilisant soit sendmail (par défaut), soit un
 # serveur SMTP externe si configuré.
 #
+# Description (English):
+# This script monitors a GitLab instance to detect new public repositories.
+# It sends an email notification upon the first detection of a repository,
+# using either sendmail (default) or a configured external SMTP server.
+#
 #==============================================================================
 
 set -euo pipefail
 
-# Variables globales
+#===[ Variables Globales / Global Variables ]===#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.conf"
 TRACKING_FILE="${SCRIPT_DIR}/tracked_repos.txt"
 TEMP_DIR="/tmp/gitlab-monitor-$$"
 LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log"
 
-# Couleurs pour les logs
+#===[ Couleurs pour les logs / Colors for logs ]===#
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -33,9 +38,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 #==============================================================================
-# Fonctions utilitaires
+# Fonctions utilitaires / Utility Functions
 #==============================================================================
 
+# Affiche un message de log avec un niveau et un horodatage.
+# Displays a log message with a level and a timestamp.
 log() {
     local level="$1"; shift
     local message="$*"
@@ -49,14 +56,15 @@ log_warn() { log "${YELLOW}WARN${NC}" "$@"; }
 log_error() { log "${RED}ERROR${NC}" "$@"; }
 log_success() { log "${GREEN}SUCCESS${NC}" "$@"; }
 
+# Nettoie le répertoire temporaire à la sortie du script.
+# Cleans up the temporary directory on script exit.
 cleanup() {
     [[ -d "$TEMP_DIR" ]] && rm -rf "$TEMP_DIR"
 }
-
 trap cleanup EXIT
 
 #==============================================================================
-# Vérification des prérequis
+# Vérification des prérequis / Prerequisite Checks
 #==============================================================================
 
 check_dependencies() {
@@ -64,6 +72,7 @@ check_dependencies() {
     local missing=()
     
     # Si SMTP est configuré, sendmail n'est pas un prérequis.
+    # If SMTP is configured, sendmail is not a prerequisite.
     if [[ -n "${SMTP_SERVER:-}" ]]; then
         deps=("curl")
     fi
@@ -75,56 +84,57 @@ check_dependencies() {
     done
     
     if [[ ${#missing[@]} -gt 0 ]]; then
-        log_error "Dépendances manquantes: ${missing[*]}"
-        log_error "Veuillez les installer pour continuer."
+        log_error "Dépendances manquantes / Missing dependencies: ${missing[*]}"
+        log_error "Veuillez les installer pour continuer. / Please install them to continue."
         exit 1
     fi
 }
 
 #==============================================================================
-# Chargement de la configuration
+# Chargement de la configuration / Load Configuration
 #==============================================================================
 
 load_config() {
     if [[ ! -f "$CONFIG_FILE" ]]; then
-        log_error "Fichier de configuration introuvable: $CONFIG_FILE"
-        log_error "Veuillez créer le fichier à partir de 'config.conf.example'."
+        log_error "Fichier de configuration introuvable / Configuration file not found: $CONFIG_FILE"
+        log_error "Veuillez le créer depuis 'config.conf.example'. / Please create it from 'config.conf.example'."
         exit 1
     fi
     
-    # Charger les variables de configuration
     source "$CONFIG_FILE"
     
-    # Vérifier les variables obligatoires
     local required_vars=("GITLAB_URL" "EMAIL_TO" "EMAIL_FROM" "NOTIFICATION_LANGUAGE")
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
-            log_error "Variable de configuration manquante dans '$CONFIG_FILE': $var"
+            log_error "Variable de configuration manquante / Missing configuration variable: $var"
             exit 1
         fi
     done
     
-    # Valider la langue
     if [[ "$NOTIFICATION_LANGUAGE" != "FR" && "$NOTIFICATION_LANGUAGE" != "EN" ]]; then
-        log_error "La variable NOTIFICATION_LANGUAGE doit être 'FR' ou 'EN'."
+        log_error "NOTIFICATION_LANGUAGE doit être 'FR' ou 'EN' / must be 'FR' or 'EN'."
         exit 1
     fi
 }
 
 #==============================================================================
-# Fonctions GitLab (via Scraping)
+# Fonctions GitLab (via Scraping) / GitLab Functions (via Scraping)
 #==============================================================================
 
+# Récupère les projets d'une page d'exploration.
+# Fetches projects from an exploration page.
 get_public_projects_page() {
     local page="$1"
     local url="${GITLAB_URL}/explore/projects?sort=latest_activity_desc&page=${page}"
     curl -s "$url" | grep -oP 'href="(/[^/]+/[^/]+)"' | sed 's/href="//;s/"//' | grep -vE '/-/' | sort -u
 }
 
+# Récupère tous les projets publics en paginant.
+# Fetches all public projects by paginating.
 get_public_projects() {
     local page=1
     local all_projects=()
-    log_info "Récupération de la liste des projets publics..."
+    log_info "Récupération de la liste des projets publics... / Fetching public projects list..."
     while true; do
         local projects_on_page
         projects_on_page=($(get_public_projects_page "$page"))
@@ -132,14 +142,16 @@ get_public_projects() {
         all_projects+=("${projects_on_page[@]}")
         ((page++))
         if [[ $page -gt 50 ]]; then
-            log_warn "Limite de 50 pages atteinte, arrêt du scan pour éviter une boucle infinie."
+            log_warn "Limite de 50 pages atteinte. / Page limit of 50 reached."
             break
         fi
     done
-    log_info "Trouvé ${#all_projects[@]} projets publics uniques."
+    log_info "Trouvé ${#all_projects[@]} projets publics uniques. / Found ${#all_projects[@]} unique public projects."
     printf '%s\n' "${all_projects[@]}" | sort -u
 }
 
+# Récupère les détails d'un projet.
+# Fetches details for a project.
 get_project_details() {
     local project_path="$1"
     local project_url="${GITLAB_URL}${project_path}"
@@ -152,12 +164,14 @@ get_project_details() {
     local repo_dev
     repo_dev=$(echo "$page_content" | grep -oP 'authored by <a[^>]*>([^<]+)</a>' | sed -e 's/.*>\(.*\)<.*/\1/' | xargs)
     
-    [[ -z "$repo_name" ]] && repo_name="Inconnu"
-    [[ -z "$repo_dev" ]] && repo_dev="Inconnu"
+    [[ -z "$repo_name" ]] && repo_name="Unknown"
+    [[ -z "$repo_dev" ]] && repo_dev="Unknown"
     
     echo "$repo_name|$project_url|$repo_dev"
 }
 
+# Vérifie l'existence d'un fichier dans le dépôt.
+# Checks for the existence of a file in the repository.
 check_file_exists() {
     local project_path="$1"
     local file_path="$2"
@@ -172,9 +186,11 @@ check_file_exists() {
 }
 
 #==============================================================================
-# Gestion du suivi
+# Gestion du suivi / Tracking Management
 #==============================================================================
 
+# Vérifie si un dépôt a déjà été traité.
+# Checks if a repository has already been processed.
 is_repo_tracked() {
     local repo_path="$1"
     local repo_hash
@@ -182,6 +198,8 @@ is_repo_tracked() {
     [[ -f "$TRACKING_FILE" ]] && grep -q "^${repo_hash}$" "$TRACKING_FILE"
 }
 
+# Ajoute un dépôt au fichier de suivi.
+# Adds a repository to the tracking file.
 add_to_tracking() {
     local repo_path="$1"
     local repo_hash
@@ -190,7 +208,7 @@ add_to_tracking() {
 }
 
 #==============================================================================
-# Envoi des emails
+# Envoi des emails / Email Sending
 #==============================================================================
 
 generate_email_body() {
@@ -215,7 +233,7 @@ send_email() {
     local body="$2"
     
     local html_body
-    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^\*\*\(.*\)\*\*<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---<br>|<hr>|')
+    html_body=$(echo "$body" | sed -e 's/$/<br>/' -e 's/^### \(.*\)<br>/<h3>\1<\/h3>/' -e 's/^**\(.*\)**<br>/<strong>\1<\/strong><br>/' -e 's/`\(.*\)`/<code>\1<\/code>/g' -e 's|---<br>|<hr>|')
 
     local email_content
     email_content=$(cat <<EOF
@@ -230,7 +248,7 @@ EOF
 )
 
     if [[ -n "${SMTP_SERVER:-}" ]]; then
-        log_info "Utilisation du serveur SMTP ($SMTP_SERVER) pour l'envoi."
+        log_info "Utilisation du serveur SMTP ($SMTP_SERVER)... / Using SMTP server ($SMTP_SERVER)..."
         local curl_opts=()
         local proto="smtp"
         if [[ "${SMTP_TLS:-}" == "true" ]]; then proto="smtps"; fi
@@ -240,35 +258,35 @@ EOF
         fi
 
         if ! echo -e "$email_content" | curl -s --url "${proto}://${SMTP_SERVER}:${SMTP_PORT:-587}" --mail-from "$EMAIL_FROM" --mail-rcpt "$EMAIL_TO" "${curl_opts[@]}" --upload-file -; then
-            log_error "Échec de l'envoi via SMTP pour le dépôt '$repo_name'."
+            log_error "Échec de l'envoi via SMTP. / SMTP send failed."
             return 1
         fi
     else
-        log_info "Utilisation de sendmail pour l'envoi."
+        log_info "Utilisation de sendmail... / Using sendmail..."
         if ! echo -e "$email_content" | sendmail -t; then
-            log_error "Échec de l'envoi via sendmail pour le dépôt '$repo_name'."
+            log_error "Échec de l'envoi via sendmail. / sendmail send failed."
             return 1
         fi
     fi
     
-    log_success "Email envoyé avec succès pour le dépôt '$repo_name'."
+    log_success "Email envoyé pour '$repo_name'. / Email sent for '$repo_name'."
     return 0
 }
 
 #==============================================================================
-# Fonctions principales
+# Fonctions principales / Main Functions
 #==============================================================================
 
 process_repo() {
     local project_path="$1"
-    log_info "Traitement du nouveau projet: $project_path"
+    log_info "Traitement du nouveau projet... / Processing new project: $project_path"
     
     local project_details
     project_details=$(get_project_details "$project_path")
     IFS='|' read -r repo_name repo_url repo_dev <<< "$project_details"
     
-    if [[ "$repo_name" == "Inconnu" ]]; then
-        log_warn "Impossible de récupérer les détails pour $project_path. Passage au suivant."
+    if [[ "$repo_name" == "Unknown" ]]; then
+        log_warn "Détails introuvables pour $project_path. / Could not fetch details for $project_path."
         return
     fi
     
@@ -276,10 +294,10 @@ process_repo() {
     local has_readme; has_readme=$(check_file_exists "$project_path" "README.md")
     local has_contributing; has_contributing=$(check_file_exists "$project_path" "CONTRIBUTING.md")
     
-    log_info "Détails: Nom='$repo_name', Dev='$repo_dev', URL='$repo_url'"
+    log_info "Détails: Nom='$repo_name', Dev='$repo_dev'"
     
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
+    local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
     
     local body; body=$(generate_email_body "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing")
     
@@ -289,7 +307,7 @@ process_repo() {
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab ==="
+    log_info "=== Début du monitoring GitLab / Starting GitLab monitoring ==="
     load_config
     check_dependencies
     
@@ -299,13 +317,13 @@ main() {
     local public_projects; public_projects=($(get_public_projects))
     
     if [[ ${#public_projects[@]} -eq 0 ]]; then
-        log_info "Aucun projet public trouvé."
-        log_info "=== Fin du monitoring GitLab ==="
+        log_info "Aucun projet public trouvé. / No public projects found."
+        log_info "=== Fin du monitoring. / Monitoring finished. ==="
         exit 0
     fi
     
     local new_repo_count=0
-    log_info "Analyse de ${#public_projects[@]} projets publics..."
+    log_info "Analyse de ${#public_projects[@]} projets... / Analyzing ${#public_projects[@]} projects..."
     
     for project_path in "${public_projects[@]}"; do
         if ! is_repo_tracked "$project_path"; then
@@ -316,42 +334,38 @@ main() {
     done
     
     if [[ $new_repo_count -eq 0 ]]; then
-        log_info "Aucun nouveau dépôt à notifier."
+        log_info "Aucun nouveau dépôt à notifier. / No new repositories to notify."
     else
-        log_success "$new_repo_count nouveaux dépôts traités."
+        log_success "$new_repo_count nouveaux dépôts traités. / $new_repo_count new repositories processed."
     fi
     
-    log_info "=== Fin du monitoring GitLab ==="
+    log_info "=== Fin du monitoring GitLab. / GitLab monitoring finished. ==="
 }
 
 #==============================================================================
-# Point d'entrée
+# Point d'entrée / Entry Point
 #==============================================================================
 
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
     cat << EOF
-GitLab Public Repository Monitor v1.1
+GitLab Public Repository Monitor v1.2
 
 Usage: $0 [OPTIONS]
 
-Surveille les nouveaux dépôts publics sur GitLab et notifie par email.
+FR: Surveille les nouveaux dépôts publics sur GitLab et notifie par email.
+EN: Monitors for new public repositories on GitLab and notifies via email.
 
 Options:
-  -h, --help     Afficher cette aide.
-  --dry-run      Exécuter le script sans envoyer d'emails (utile pour tester).
-  --config FILE  Spécifier un chemin de configuration personnalisé.
-
-Fichiers:
-  config.conf         Fichier de configuration principal.
-  tracked_repos.txt   Base de données des dépôts notifiés (auto-généré).
-  gitlab-monitor.log  Fichier de log des opérations (auto-généré).
+  -h, --help     Afficher cette aide / Display this help.
+  --dry-run      Exécuter sans envoyer d'emails / Run without sending emails.
+  --config FILE  Chemin de configuration personnalisé / Custom config path.
 EOF
     exit 0
 fi
 
-# Surcharge pour le mode dry-run
 if [[ "${1:-}" == "--dry-run" ]]; then
     log_warn "Mode DRY-RUN activé - Aucun email ne sera envoyé."
+    log_warn "DRY-RUN mode enabled - No emails will be sent."
     send_email() {
         log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
         add_to_tracking "$project_path"
@@ -359,7 +373,6 @@ if [[ "${1:-}" == "--dry-run" ]]; then
     }
 fi
 
-# Gestion du fichier de config personnalisé
 if [[ "${1:-}" == "--config" ]]; then
     if [[ -n "${2:-}" ]] && [[ -f "$2" ]]; then
         CONFIG_FILE="$2"

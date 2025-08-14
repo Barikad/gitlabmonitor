@@ -1,63 +1,81 @@
 #==============================================================================
 # Configuration GitLab Public Repository Monitor
+# English version below
 #==============================================================================
 
 #------------------------------------------------------------------------------
 # Configuration GitLab (Obligatoire)
+# GitLab Configuration (Required)
 #------------------------------------------------------------------------------
 
 # URL de votre instance GitLab (sans slash à la fin)
+# URL of your GitLab instance (without trailing slash)
 GITLAB_URL="https://gitlab.example.com"
 
 #------------------------------------------------------------------------------
 # Configuration Email (Obligatoire)
+# Email Configuration (Required)
 #------------------------------------------------------------------------------
 
 # Langue des notifications ("FR" ou "EN")
+# Notification language ("FR" or "EN")
 NOTIFICATION_LANGUAGE="FR"
 
 # Adresse email de destination pour les notifications
+# Destination email address for notifications
 EMAIL_TO="admin@example.com"
 
 # Adresse email d'expéditeur
+# Sender email address
 EMAIL_FROM="gitlab-monitor@example.com"
 
 # Sujet de l'email (la variable $REPONAME sera remplacée)
+# Email subject (the $REPONAME variable will be replaced)
 EMAIL_SUBJECT_FR="⚠️ Nouveau dépôt public détecté: \$REPONAME"
 EMAIL_SUBJECT_EN="⚠️ New public repository detected: \$REPONAME"
 
 #------------------------------------------------------------------------------
 # Configuration SMTP (Optionnelle)
+# SMTP Configuration (Optional)
 #------------------------------------------------------------------------------
 # Décommentez et remplissez ces lignes pour utiliser un serveur SMTP externe
 # au lieu de la commande 'sendmail' locale.
-#
 # Si SMTP_SERVER est défini, le script utilisera curl pour envoyer les emails.
 # 'sendmail' ne sera alors plus un prérequis.
+#
+# Uncomment and fill in these lines to use an external SMTP server
+# instead of the local 'sendmail' command.
+# If SMTP_SERVER is set, the script will use curl to send emails.
+# 'sendmail' will no longer be a prerequisite.
 #------------------------------------------------------------------------------
 
 # SMTP_SERVER="smtp.example.com"
-# SMTP_PORT="587"  # (587 pour TLS, 465 pour SSL)
-# SMTP_USER="votre_utilisateur_smtp"
-# SMTP_PASS="votre_mot_de_passe"
-# SMTP_TLS="true"  # Mettre "true" pour utiliser SMTPS (recommandé)
+# SMTP_PORT="587"  # (587 for TLS, 465 for SSL)
+# SMTP_USER="your_smtp_user"
+# SMTP_PASS="your_password"
+# SMTP_TLS="true"  # Set to "true" to use SMTPS (recommended)
 
 #------------------------------------------------------------------------------
 # Configuration avancée (Optionnelle)
+# Advanced Configuration (Optional)
 #------------------------------------------------------------------------------
 
 # Timeout pour les appels réseau (en secondes)
+# Network call timeout (in seconds)
 API_TIMEOUT=30
 
 # Niveau de log (DEBUG, INFO, WARN, ERROR)
+# Log level (DEBUG, INFO, WARN, ERROR)
 LOG_LEVEL="INFO"
 
 #==============================================================================
 # Templates d'email (Ne pas modifier les délimiteurs 'EOF')
+# Email Templates (Do not modify the 'EOF' delimiters)
 #==============================================================================
 
 #------------------------------------------------------------------------------
 # Template Email Français (Markdown)
+# French Email Template (Markdown)
 #------------------------------------------------------------------------------
 read -r -d '' EMAIL_TEMPLATE_FR << 'EOF'
 Bonjour,
@@ -87,6 +105,7 @@ EOF
 
 #------------------------------------------------------------------------------
 # Template Email Anglais (Markdown)
+# English Email Template (Markdown)
 #------------------------------------------------------------------------------
 read -r -d '' EMAIL_TEMPLATE_EN << 'EOF'
 Hello,
