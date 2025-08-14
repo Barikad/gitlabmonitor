@@ -18,7 +18,10 @@ GITLAB_URL="https://gitlab.example.com"
 #------------------------------------------------------------------------------
 
 # Langue des notifications ("FR" ou "EN")
+# Le script chargera le fichier template.fr.md ou template.en.md en conséquence.
+#
 # Notification language ("FR" or "EN")
+# The script will load the corresponding template.fr.md or template.en.md file.
 NOTIFICATION_LANGUAGE="FR"
 
 # Adresse email de destination pour les notifications
@@ -38,15 +41,8 @@ EMAIL_SUBJECT_EN="⚠️ New public repository detected: \$REPONAME"
 # Configuration SMTP (Optionnelle)
 # SMTP Configuration (Optional)
 #------------------------------------------------------------------------------
-# Décommentez et remplissez ces lignes pour utiliser un serveur SMTP externe
-# au lieu de la commande 'sendmail' locale.
-# Si SMTP_SERVER est défini, le script utilisera curl pour envoyer les emails.
-# 'sendmail' ne sera alors plus un prérequis.
-#
-# Uncomment and fill in these lines to use an external SMTP server
-# instead of the local 'sendmail' command.
-# If SMTP_SERVER is set, the script will use curl to send emails.
-# 'sendmail' will no longer be a prerequisite.
+# Décommentez et remplissez ces lignes pour utiliser un serveur SMTP externe.
+# Uncomment and fill in these lines to use an external SMTP server.
 #------------------------------------------------------------------------------
 
 # SMTP_SERVER="smtp.example.com"
@@ -67,70 +63,3 @@ API_TIMEOUT=30
 # Niveau de log (DEBUG, INFO, WARN, ERROR)
 # Log level (DEBUG, INFO, WARN, ERROR)
 LOG_LEVEL="INFO"
-
-#==============================================================================
-# Templates d'email (Ne pas modifier les délimiteurs 'EOF')
-# Email Templates (Do not modify the 'EOF' delimiters)
-#==============================================================================
-
-#------------------------------------------------------------------------------
-# Template Email Français (Markdown)
-# French Email Template (Markdown)
-#------------------------------------------------------------------------------
-read -r -d '' EMAIL_TEMPLATE_FR << 'EOF'
-Bonjour,
-
-Un nouveau dépôt GitLab accessible publiquement a été détecté : **$REPONAME**.
-
-Ceci est la première et unique notification pour ce dépôt.
-
-| Attribut | Valeur |
-|---|---|
-| **Nom du dépôt** | `$REPONAME` |
-| **Dernier commit par** | `$REPODEV` |
-| **URL** | `$REPOURL` |
-| **Fichier LICENSE** | `$URLLICENSE` |
-| **Fichier README.md** | `$URLREADME` |
-| **Fichier CONTRIBUTING.md** | `$URLCONTRIBUTING` |
-
----
-### ⚠️ Rappel des règles de publication
-
-1.  **Aucune information sensible** : Pas de secrets, d'identifiants, d'IP internes, etc.
-    *   Utilisez des outils comme [FindSecretLeak](https://gitlab.villejuif.fr/depots-public/findsecretsleak) pour vérifier.
-2.  **Code générique** : Le code doit être réutilisable et non spécifique à un environnement.
-3.  **Licence AGPLv3** : Tout dépôt public doit être sous cette licence.
-4.  **Fichiers `CONTRIBUTING.md` et `README.md`** : Doivent être présents et de qualité.
-
-EOF
-
-#------------------------------------------------------------------------------
-# Template Email Anglais (Markdown)
-# English Email Template (Markdown)
-#------------------------------------------------------------------------------
-read -r -d '' EMAIL_TEMPLATE_EN << 'EOF'
-Hello,
-
-A new publicly accessible GitLab repository has been detected: **$REPONAME**.
-
-This is the first and only notification for this repository.
-
-| Attribute | Value |
-|---|---|
-| **Repository Name** | `$REPONAME` |
-| **Last commit by** | `$REPODEV` |
-| **URL** | `$REPOURL` |
-| **LICENSE file** | `$URLLICENSE` |
-| **README.md file** | `$URLREADME` |
-| **CONTRIBUTING.md file** | `$URLCONTRIBUTING` |
-
----
-### ⚠️ Publication Policy Reminder
-
-1.  **No sensitive information**: No secrets, credentials, internal IPs, etc.
-    *   Use tools like [FindSecretLeak](https://gitlab.villejuif.fr/depots-public/findsecretsleak) to check.
-2.  **Generic code**: Code must be reusable and not environment-specific.
-3.  **AGPLv3 License**: All public repositories must use this license.
-4.  **`CONTRIBUTING.md` and `README.md` files**: Must be present and of high quality.
-
-EOF
