@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.1
+# Version:  2.5.0
 #
 #==============================================================================
 
@@ -134,21 +134,6 @@ send_email() {
         return 0
     fi
 
-    local lang_code; lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
-    local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
-    if [[ ! -f "$template_file" ]]; then
-        log_error "Template introuvable: $template_file"
-        return 1
-    fi
-    
-    local body; body=$(cat "$template_file")
-    body="${body//\$REPONAME/$repo_name}"
-    body="${body//\$REPODEV/$repo_dev}"
-    body="${body//\$REPOURL/$repo_url}"
-    body="${body//\$URLLICENSE/$has_license}"
-    body="${body//\$URLREADME/$has_readme}"
-    body="${body//\$URLCONTRIBUTING/$has_contributing}"
-
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
@@ -157,7 +142,44 @@ Subject: =?UTF-8?B?$(echo -n "$subject" | base64)?=
 Content-Type: text/html; charset=UTF-8
 MIME-Version: 1.0
 
-<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;line-height:1.6;margin:20px;color:#333}table{border-collapse:collapse;width:100%;margin-bottom:20px}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background-color:#f2f2f2;font-weight:bold;}h3{color:#d9534f;border-bottom:1px solid #eee;padding-bottom:5px}hr{border:0;border-top:1px solid #eee;margin:20px 0}ul{padding-left:20px;}li{margin-bottom:5px;}</style></head><body>$(echo "$body" | sed 's/$/<br>/g')</body></html>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+    body { font-family: sans-serif; line-height: 1.6; margin: 20px; color: #333; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    h3 { color: #d9534f; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+    <p>Bonjour, nous avons détecté la présence d'un dépôt Gitlab accessible publiquement.</p>
+    <p>C'est la première détection de ce dépôt et <strong>vous ne serez plus notifié à l'avenir.</strong></p>
+    <table>
+        <tr><th>Nom du dépôt:</th><td>$repo_name</td></tr>
+        <tr><th>Dernier commit par:</th><td>$repo_dev</td></tr>
+        <tr><th>Publié à l'adresse:</th><td><a href="$repo_url">$repo_url</a></td></tr>
+        <tr><th>Présence d'une licence:</th><td>$has_license</td></tr>
+        <tr><th>Présence d'une documentation:</th><td>$has_readme</td></tr>
+        <tr><th>Présence d'un guide de contribution:</th><td>$has_contributing</td></tr>
+    </table>
+    <hr>
+    <h3>⚠️ Avertissement Important concernant les Dépôts Publics</h3>
+    <p>Pour les dépôts accessible publiquement sur Internet, il est <strong>impératif</strong> de respecter les règles suivantes :</p>
+    <ul>
+        <li><strong>Aucune Information Sensible :</strong> Les scripts ne doivent contenir aucun nom, IP, secret ou information spécifique à notre organisation.</li>
+        <li><strong>Code Générique :</strong> Seuls les scripts généralistes et réutilisables sont éligibles.</li>
+        <li><strong>Licence AGPLv3 :</strong> Tout projet public doit être sous cette licence.</li>
+        <li><strong>Fichiers de Contribution et Documentation :</strong> `CONTRIBUTING.md` et `README.md` doivent être présents et de qualité.</li>
+    </ul>
+    <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
+</body>
+</html>
 EOF
 )
 
@@ -178,7 +200,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.1 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.0 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -198,24 +220,28 @@ main() {
             continue
         fi
 
-        log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-        
-        local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-        local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-        local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-        local repo_dev; repo_dev=$(get_last_committer "$repo_id")
+        set +e # Désactive l'arrêt sur erreur pour le traitement d'un seul projet
+        (
+            log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
+            
+            local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
+            local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
+            local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+            local repo_dev; repo_dev=$(get_last_committer "$repo_id")
 
-        local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
-        local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
-        local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
-        
-        local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
-        
-        if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
-            add_to_tracking "$repo_id"
-        fi
-        ((new_repo_count++))
+            local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
+            local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
+            local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+            
+            local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
+            local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+            
+            if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
+                add_to_tracking "$repo_id"
+            fi
+            ((new_repo_count++))
+        )
+        set -e # Réactive l'arrêt sur erreur
     done
 
     if [[ $new_repo_count -eq 0 ]]; then
