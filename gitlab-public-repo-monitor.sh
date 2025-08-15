@@ -5,18 +5,41 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.0
+# Version:  2.5.2
 #
 #==============================================================================
 
-set -euo pipefail
+# Arrête le script en cas d'erreur
+set -uo pipefail
 
 #===[ Global Variables ]===#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.conf"
 TRACKING_FILE="${SCRIPT_DIR}/tracked_repos.txt"
-LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log"
+LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log" # Default log file
 DRY_RUN=false
+DEBUG_MODE=false
+
+#==============================================================================
+# Argument Parsing
+#==============================================================================
+for arg in "$@"; do
+  case $arg in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --debug)
+      DEBUG_MODE=true
+      LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
+      shift
+      ;;
+  esac
+done
+
+if [[ "$DEBUG_MODE" == "true" ]]; then
+    set -x # Active le mode verbeux
+fi
 
 #===[ Colors for logs ]===#
 RED='\033[0;31m'
@@ -200,7 +223,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.0 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.2 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -220,7 +243,7 @@ main() {
             continue
         fi
 
-        set +e # Désactive l'arrêt sur erreur pour le traitement d'un seul projet
+        set +e # Désactive l'arrêt sur erreur pour ce bloc
         (
             log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
             
@@ -257,9 +280,24 @@ main() {
 # Entry Point
 #==============================================================================
 
-if [[ "${1:-}" == "--dry-run" ]]; then
-    log_warn "Mode DRY-RUN activé - Aucun email ne sera envoyé."
-    DRY_RUN=true
-fi
+# Boucle pour parser tous les arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --debug)
+      DEBUG_MODE=true
+      LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
+      set -x # Active le mode verbeux
+      shift
+      ;;
+    *)
+      # Argument inconnu
+      shift
+      ;;
+  esac
+done
 
-main "$@"
+main
