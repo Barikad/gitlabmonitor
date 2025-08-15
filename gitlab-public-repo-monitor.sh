@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.2
+# Version:  2.5.3
 #
 #==============================================================================
 
@@ -32,14 +32,13 @@ for arg in "$@"; do
     --debug)
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
+      # Redirige stderr vers stdout pour capturer la sortie de 'set -x'
+      exec 2>&1
+      set -x # Active le mode verbeux
       shift
       ;;
   esac
 done
-
-if [[ "$DEBUG_MODE" == "true" ]]; then
-    set -x # Active le mode verbeux
-fi
 
 #===[ Colors for logs ]===#
 RED='\033[0;31m'
@@ -223,7 +222,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.2 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.3 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -290,6 +289,8 @@ while [[ $# -gt 0 ]]; do
     --debug)
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
+      # Redirige stderr (où 'set -x' écrit) vers stdout, qui sera capturé par 'tee' dans la fonction log.
+      exec 2>&1
       set -x # Active le mode verbeux
       shift
       ;;
