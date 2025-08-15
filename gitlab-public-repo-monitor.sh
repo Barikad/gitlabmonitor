@@ -5,16 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.3.0
-# URL:      https://gitlab.villejuif.fr/depots-public/gitlabmonitor
-#
-# Description (FR):
-# Ce script utilise l'API GitLab pour surveiller les nouveaux dépôts publics
-# et envoie une notification par email au format HTML propre.
-#
-# Description (EN):
-# This script uses the GitLab API to monitor for new public repositories
-# and sends a clean HTML-formatted email notification.
+# Version:  2.4.0
 #
 #==============================================================================
 
@@ -94,7 +85,7 @@ get_last_committer() {
     local api_url="${GITLAB_URL}/api/v4/projects/${project_id}/repository/commits?per_page=1"
     local response
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
-    if echo "$response" | jq -e '.[0].author_name' > /dev/null; then
+    if echo "$response" | jq -e '.[0].author_name' > /dev/null 2>&1; then
         echo "$response" | jq -r '.[0].author_name'
     else
         echo "N/A"
@@ -107,9 +98,9 @@ check_file_exists() {
     local encoded_project_path
     encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
     if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
     if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
 }
 
@@ -129,71 +120,65 @@ add_to_tracking() {
 # Email Generation & Sending
 #==============================================================================
 
-markdown_to_html() {
-    local markdown_text="$1"
-    local html=""
-    local in_table=false
-
-    while IFS= read -r line; do
-        if [[ "$line" == *"|"* && "$in_table" == false ]]; then
-            in_table=true
-            html+="<table>\n"
-            # Header row
-            local header_line="<tr>"
-            while IFS='|' read -ra cols; do
-                for col in "${cols[@]}"; do
-                    header_line+="<th>${col// /}</th>"
-                done
-            done <<< "$line"
-            header_line+="</tr>\n"
-            html+="$header_line"
-        elif [[ "$line" == *"|---"* && "$in_table" == true ]]; then
-            continue
-        elif [[ "$line" == *"|"* && "$in_table" == true ]]; then
-            # Data row
-            local data_line="<tr>"
-            while IFS='|' read -ra cols; do
-                for col in "${cols[@]}"; do
-                    data_line+="<td>${col// /}</td>"
-                done
-            done <<< "$line"
-            data_line+="</tr>\n"
-            html+="$data_line"
-        elif [[ "$line" != *"|"* && "$in_table" == true ]]; then
-            in_table=false
-            html+="</table>\n"
-            html+="${line}<br>\n"
-        else
-            line=$(echo "$line" | sed 's|### \(.*\)|\n<h3>\1</h3>|g' | sed 's|\*\*\([^*]*\)\*\*|<strong>\1</strong>|g' | sed 's|---| <hr>|g')
-            html+="${line}<br>\n"
-        fi
-    done <<< "$markdown_text"
-
-    if [[ "$in_table" == true ]]; then
-        html+="</table>\n"
-    fi
-    echo "$html"
-}
-
 send_email() {
     local subject="$1"
-    local body="$2"
-    local repo_name="$3"
+    local repo_name="$2"
+    local repo_dev="$3"
+    local repo_url="$4"
+    local has_license="$5"
+    local has_readme="$6"
+    local has_contributing="$7"
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
         return 0
     fi
 
-    local html_body; html_body=$(markdown_to_html "$body")
-    local email_content; email_content=$(cat <<EOF
+    local email_content
+    email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
 Subject: $subject
 Content-Type: text/html; charset=UTF-8
 MIME-Version: 1.0
 
-<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:sans-serif;line-height:1.6;margin:20px;color:#333}table{border-collapse:collapse;width:100%;margin-bottom:20px}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background-color:#f2f2f2}h3{color:#d9534f;border-bottom:1px solid #eee;padding-bottom:5px}hr{border:0;border-top:1px solid #eee;margin:20px 0}</style></head><body>${html_body}</body></html>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+    body { font-family: sans-serif; line-height: 1.6; margin: 20px; color: #333; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    h3 { color: #d9534f; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+</style>
+</head>
+<body>
+    <p>Bonjour, nous avons détecté la présence d'un dépôt Gitlab accessible publiquement.</p>
+    <p>C'est la première détection de ce dépôt et <strong>vous ne serez plus notifié à l'avenir.</strong></p>
+    <table>
+        <tr><th>Nom du dépôt:</th><td>$repo_name</td></tr>
+        <tr><th>Dernier commit par:</th><td>$repo_dev</td></tr>
+        <tr><th>Publié à l'adresse:</th><td><a href="$repo_url">$repo_url</a></td></tr>
+        <tr><th>Présence d'une licence:</th><td>$has_license</td></tr>
+        <tr><th>Présence d'une documentation:</th><td>$has_readme</td></tr>
+        <tr><th>Présence d'un guide de contribution:</th><td>$has_contributing</td></tr>
+    </table>
+    <hr>
+    <h3>⚠️ Avertissement Important concernant les Dépôts Publics</h3>
+    <p>Pour les dépôts accessible publiquement sur Internet, il est <strong>impératif</strong> de respecter les règles suivantes avant toute publication sur notre plateforme Gitlab:</p>
+    <ol>
+        <li><strong>Aucune Information Sensible ou Spécifique à notre organisation</strong></li>
+        <li><strong>Conditions d'Éligibilité à la Publication</strong> : Seuls les scripts/codes généralistes et réutilisables.</li>
+        <li><strong>Licence AGPLv3</strong></li>
+        <li><strong>Fichier de Contribution</strong></li>
+        <li><strong>Documentation de Qualité (`README.md`)</strong></li>
+    </ol>
+    <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
+</body>
+</html>
 EOF
 )
 
@@ -214,7 +199,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.3.0 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.4.0 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -226,41 +211,31 @@ main() {
     log_info "Analyse de ${project_count} projets..."
     local new_repo_count=0
     
-    # Boucle robuste avec process substitution pour éviter les problèmes de sous-shell
     while IFS= read -r project_json; do
-        local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-        if ! is_repo_tracked "$repo_id"; then
-            log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-            
-            local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-            local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-            local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-            local repo_dev; repo_dev=$(get_last_committer "$repo_id")
+        (
+            set +e # Désactive l'arrêt sur erreur pour ce bloc
+            local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
+            if ! is_repo_tracked "$repo_id"; then
+                log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
+                
+                local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
+                local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
+                local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+                local repo_dev; repo_dev=$(get_last_committer "$repo_id")
 
-            local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
-            local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
-            local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
-            
-            local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-            local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
-            
-            local lang_code; lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
-            local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
-            if [[ ! -f "$template_file" ]]; then log_error "Template introuvable: $template_file"; continue; fi
-            
-            local body; body=$(cat "$template_file")
-            body="${body//\$REPONAME/$repo_name}"
-            body="${body//\$REPODEV/$repo_dev}"
-            body="${body//\$REPOURL/$repo_url}"
-            body="${body//\$URLLICENSE/$has_license}"
-            body="${body//\$URLREADME/$has_readme}"
-            body="${body//\$URLCONTRIBUTING/$has_contributing}"
-            
-            if send_email "$subject" "$body" "$repo_name"; then
-                add_to_tracking "$repo_id"
+                local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
+                local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
+                local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+                
+                local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
+                local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
+                
+                if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
+                    add_to_tracking "$repo_id"
+                fi
+                ((new_repo_count++))
             fi
-            ((new_repo_count++))
-        fi
+        )
     done < <(echo "$public_projects_json" | jq -c '.[]')
 
     if [[ $new_repo_count -eq 0 ]]; then
