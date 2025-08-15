@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.5
+# Version:  2.5.6
 #
 #==============================================================================
 
@@ -222,7 +222,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.5 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.6 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -254,7 +254,7 @@ main() {
         local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
         
         local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\\$REPONAME/$repo_name/g")
+        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\\\$REPONAME/$repo_name/g")
         
         if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
             add_to_tracking "$repo_id"
