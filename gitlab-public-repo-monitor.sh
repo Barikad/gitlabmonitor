@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.4
+# Version:  2.5.5
 #
 #==============================================================================
 
@@ -118,9 +118,9 @@ check_file_exists() {
     local encoded_project_path
     encoded_project_path=$(printf %s "$project_path_with_namespace" | jq -sRr @uri)
     local status_code
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
+    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
     if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
-    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
+    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
     if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
 }
 
@@ -195,7 +195,9 @@ MIME-Version: 1.0
         <li><strong>Aucune Information Sensible :</strong> Les scripts ne doivent contenir aucun nom, IP, secret ou information spécifique à notre organisation.</li>
         <li><strong>Code Générique :</strong> Seuls les scripts généralistes et réutilisables sont éligibles.</li>
         <li><strong>Licence AGPLv3 :</strong> Tout projet public doit être sous cette licence.</li>
-        <li><strong>Fichiers de Contribution et Documentation :</strong> <code>CONTRIBUTING.md</code> et <code>README.md</code> doivent être présents et de qualité.</li>
+        <li><strong>Fichiers de Contribution et Documentation :</strong> 
+            CONTRIBUTING.md et README.md doivent être présents et de qualité.
+        </li>
     </ul>
     <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
 </body>
@@ -220,7 +222,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.4 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.5 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -252,7 +254,7 @@ main() {
         local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
         
         local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
+        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\\$REPONAME/$repo_name/g")
         
         if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
             add_to_tracking "$repo_id"
