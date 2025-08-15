@@ -22,21 +22,8 @@ DEBUG_MODE=false
 #==============================================================================
 # Argument Parsing
 #==============================================================================
-for arg in "$@"; do
-  case $arg in
-    --dry-run) 
-      DRY_RUN=true
-      shift
-      ;; 
-    --debug) 
-      DEBUG_MODE=true
-      LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      exec 2>&1
-      set -x
-      shift
-      ;; 
-  esac
-done
+# Move argument parsing to the end to allow `set -x` to cover the whole script
+# when --debug is the first argument.
 
 #===[ Colors for logs ]===#
 RED='\033[0;31m'
@@ -54,7 +41,12 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "${timestamp} [${level}] ${message}" | tee -a "${LOG_FILE}"
+    # Log to stderr if it's an error, otherwise stdout
+    if [[ "$level" == "${RED}ERROR${NC}" ]]; then
+        echo -e "${timestamp} [${level}] ${message}" >&2 | tee -a "${LOG_FILE}"
+    else
+        echo -e "${timestamp} [${level}] ${message}" | tee -a "${LOG_FILE}"
+    fi
 }
 
 log_info() { log "${BLUE}INFO${NC}" "$@"; }
@@ -87,15 +79,15 @@ load_config_and_check_deps() {
 #==============================================================================
 
 get_public_projects_from_api() {
-    log_info >&2 "Récupération des projets publics via l'API..."
+    log_info "Récupération des projets publics via l'API..."
     local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=last_activity_at&sort=desc&per_page=100"
     local response
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
     if ! echo "$response" | jq empty 2>/dev/null; then
-        log_error >&2 "Réponse de l'API invalide."
+        log_error "Réponse de l'API invalide."
         echo "[]"
     else
-        log_info >&2 "Trouvé $(echo "$response" | jq 'length') projets publics."
+        log_info "Trouvé $(echo "$response" | jq 'length') projets publics."
         echo "$response"
     fi
 }
@@ -118,8 +110,10 @@ check_file_exists() {
     local encoded_project_path
     encoded_project_path=$(printf %s "$project_path_with_namespace" | jq -sRr @uri)
     local status_code
+    # Check main branch
     status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
-    if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
+    if [[ "$status_code" == "200" ]]; then echo "✅"; return 0; fi
+    # Check master branch as a fallback
     status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
     if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
 }
@@ -222,6 +216,38 @@ EOF
 # Main Logic
 #==============================================================================
 
+process_project() {
+    local project_json="$1"
+    local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
+
+    if is_repo_tracked "$repo_id"; then
+        return 0
+    fi
+
+    log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
+    
+    local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
+    local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
+    local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+    local repo_dev; repo_dev=$(get_last_committer "$repo_id")
+
+    local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
+    local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
+    local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+    
+    local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
+    local subject_template="${!subject_template_var}"
+    local subject="${subject_template/\$REPONAME/$repo_name}"
+    
+    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
+        add_to_tracking "$repo_id"
+        return 0 # Success
+    else
+        return 1 # Failure
+    fi
+}
+
+
 main() {
     log_info "=== Début du monitoring GitLab (v2.5.8 API) ==="
     load_config_and_check_deps
@@ -236,41 +262,12 @@ main() {
     local new_repo_count=0
     
     for i in $(seq 0 $((project_count - 1))); do
-      ( 
-        local project_json; project_json=$(echo "$public_projects_json" | jq -c ".[${i}]")
-        local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-
-        if is_repo_tracked "$repo_id"; then
-            exit 0 # Exit subshell, not the main script
+        local project_data; project_data=$(echo "$public_projects_json" | jq -c ".[${i}]")
+        if process_project "$project_data"; then
+            ((new_repo_count++))
+        else
+            log_warn "Échec du traitement pour le projet $(echo "$project_data" | jq -r .name). Passage au suivant."
         fi
-
-        log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-        
-        local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-        local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-        local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-        local repo_dev; repo_dev=$(get_last_committer "$repo_id")
-
-        local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
-        local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
-        local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
-        
-        local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-        local subject_template="${!subject_template_var}"
-        local subject="${subject_template/
-$REPONAME/$repo_name}"
-        
-        if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
-            add_to_tracking "$repo_id"
-        fi
-        
-      ) || log_warn "Échec du traitement pour le projet #$i. Passage au suivant."
-      
-      # We check tracking again because the subshell might have added it
-      local repo_id; repo_id=$(echo "$public_projects_json" | jq -r ".[${i}].id")
-      if ! is_repo_tracked "$repo_id"; then
-          ((new_repo_count++))
-      fi
     done
 
     if [[ $new_repo_count -eq 0 ]]; then
@@ -286,8 +283,8 @@ $REPONAME/$repo_name}"
 # Entry Point
 #==============================================================================
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
+for arg in "$@"; do
+  case $arg in
     --dry-run) 
       DRY_RUN=true
       shift
@@ -295,11 +292,8 @@ while [[ $# -gt 0 ]]; do
     --debug) 
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      exec 2>&1
+      exec 2> >(tee -a "${LOG_FILE}")
       set -x
-      shift
-      ;; 
-    *) 
       shift
       ;; 
   esac
