@@ -5,12 +5,11 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.3
+# Version:  2.5.4
 #
 #==============================================================================
 
-# Arrête le script en cas d'erreur
-set -uo pipefail
+set -euo pipefail
 
 #===[ Global Variables ]===#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -25,18 +24,17 @@ DEBUG_MODE=false
 #==============================================================================
 for arg in "$@"; do
   case $arg in
-    --dry-run)
+    --dry-run) 
       DRY_RUN=true
       shift
-      ;;
-    --debug)
+      ;; 
+    --debug) 
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      # Redirige stderr vers stdout pour capturer la sortie de 'set -x'
       exec 2>&1
-      set -x # Active le mode verbeux
+      set -x
       shift
-      ;;
+      ;; 
   esac
 done
 
@@ -118,7 +116,7 @@ check_file_exists() {
     local project_path_with_namespace="$1"
     local file_path="$2"
     local encoded_project_path
-    encoded_project_path=$(echo "$project_path_with_namespace" | jq -sRr @uri)
+    encoded_project_path=$(printf %s "$project_path_with_namespace" | jq -sRr @uri)
     local status_code
     status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
     if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
@@ -197,7 +195,7 @@ MIME-Version: 1.0
         <li><strong>Aucune Information Sensible :</strong> Les scripts ne doivent contenir aucun nom, IP, secret ou information spécifique à notre organisation.</li>
         <li><strong>Code Générique :</strong> Seuls les scripts généralistes et réutilisables sont éligibles.</li>
         <li><strong>Licence AGPLv3 :</strong> Tout projet public doit être sous cette licence.</li>
-        <li><strong>Fichiers de Contribution et Documentation :</strong> `CONTRIBUTING.md` et `README.md` doivent être présents et de qualité.</li>
+        <li><strong>Fichiers de Contribution et Documentation :</strong> <code>CONTRIBUTING.md</code> et <code>README.md</code> doivent être présents et de qualité.</li>
     </ul>
     <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
 </body>
@@ -222,7 +220,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.3 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.4 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -235,35 +233,31 @@ main() {
     local new_repo_count=0
     
     for i in $(seq 0 $((project_count - 1))); do
-        local project_json; project_json=$(echo "$public_projects_json" | jq -c ".[$i]")
+        local project_json; project_json=$(echo "$public_projects_json" | jq -c ".[${i}]")
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
 
         if is_repo_tracked "$repo_id"; then
             continue
         fi
 
-        set +e # Désactive l'arrêt sur erreur pour ce bloc
-        (
-            log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-            
-            local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-            local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-            local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
-            local repo_dev; repo_dev=$(get_last_committer "$repo_id")
+        log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
+        
+        local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
+        local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
+        local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+        local repo_dev; repo_dev=$(get_last_committer "$repo_id")
 
-            local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
-            local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
-            local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
-            
-            local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-            local subject; subject=$(echo "${!subject_template_var}" | sed "s/\$REPONAME/$repo_name/g")
-            
-            if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
-                add_to_tracking "$repo_id"
-            fi
-            ((new_repo_count++))
-        )
-        set -e # Réactive l'arrêt sur erreur
+        local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
+        local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
+        local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+        
+        local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
+        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
+        
+        if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
+            add_to_tracking "$repo_id"
+        fi
+        ((new_repo_count++))
     done
 
     if [[ $new_repo_count -eq 0 ]]; then
@@ -279,25 +273,22 @@ main() {
 # Entry Point
 #==============================================================================
 
-# Boucle pour parser tous les arguments
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --dry-run)
+    --dry-run) 
       DRY_RUN=true
       shift
-      ;;
-    --debug)
+      ;; 
+    --debug) 
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      # Redirige stderr (où 'set -x' écrit) vers stdout, qui sera capturé par 'tee' dans la fonction log.
       exec 2>&1
-      set -x # Active le mode verbeux
+      set -x
       shift
-      ;;
-    *)
-      # Argument inconnu
+      ;; 
+    *) 
       shift
-      ;;
+      ;; 
   esac
 done
 
