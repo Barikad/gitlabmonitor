@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.7
+# Version:  2.5.8
 #
 #==============================================================================
 
@@ -195,7 +195,10 @@ MIME-Version: 1.0
         <li><strong>Aucune Information Sensible :</strong> Les scripts ne doivent contenir aucun nom, IP, secret ou information spécifique à notre organisation.</li>
         <li><strong>Code Générique :</strong> Seuls les scripts généralistes et réutilisables sont éligibles.</li>
         <li><strong>Licence AGPLv3 :</strong> Tout projet public doit être sous cette licence.</li>
-        <li><strong>Fichiers de Contribution et Documentation :</strong> <code>CONTRIBUTING.md</code> et <code>README.md</code> doivent être présents et de qualité.</li>
+        <li><strong>Fichiers de Contribution et Documentation :</strong> 
+            <code>CONTRIBUTING.md</code> et 
+            <code>README.md</code> doivent être présents et de qualité.
+        </li>
     </ul>
     <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
 </body>
@@ -220,7 +223,7 @@ EOF
 #==============================================================================
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.7 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.8 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -233,11 +236,12 @@ main() {
     local new_repo_count=0
     
     for i in $(seq 0 $((project_count - 1))); do
+      ( 
         local project_json; project_json=$(echo "$public_projects_json" | jq -c ".[${i}]")
         local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
 
         if is_repo_tracked "$repo_id"; then
-            continue
+            exit 0 # Exit subshell, not the main script
         fi
 
         log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
@@ -253,12 +257,20 @@ main() {
         
         local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
         local subject_template="${!subject_template_var}"
-        local subject="${subject_template/\$REPONAME/$repo_name}"
+        local subject="${subject_template/
+$REPONAME/$repo_name}"
         
         if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
             add_to_tracking "$repo_id"
         fi
-        ((new_repo_count++))
+        
+      ) || log_warn "Échec du traitement pour le projet #$i. Passage au suivant."
+      
+      # We check tracking again because the subshell might have added it
+      local repo_id; repo_id=$(echo "$public_projects_json" | jq -r ".[${i}].id")
+      if ! is_repo_tracked "$repo_id"; then
+          ((new_repo_count++))
+      fi
     done
 
     if [[ $new_repo_count -eq 0 ]]; then
