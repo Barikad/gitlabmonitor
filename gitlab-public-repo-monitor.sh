@@ -5,25 +5,20 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.5.8
+# Version:  2.5.9
 #
 #==============================================================================
 
-set -euo pipefail
+# Exit on unset variables and pipeline errors, but not on individual command errors
+set -uo pipefail
 
 #===[ Global Variables ]===#
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/config.conf"
 TRACKING_FILE="${SCRIPT_DIR}/tracked_repos.txt"
-LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log" # Default log file
+LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log"
 DRY_RUN=false
 DEBUG_MODE=false
-
-#==============================================================================
-# Argument Parsing
-#==============================================================================
-# Move argument parsing to the end to allow `set -x` to cover the whole script
-# when --debug is the first argument.
 
 #===[ Colors for logs ]===#
 RED='\033[0;31m'
@@ -41,12 +36,9 @@ log() {
     local message="$*"
     local timestamp
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    # Log to stderr if it's an error, otherwise stdout
-    if [[ "$level" == "${RED}ERROR${NC}" ]]; then
-        echo -e "${timestamp} [${level}] ${message}" >&2 | tee -a "${LOG_FILE}"
-    else
-        echo -e "${timestamp} [${level}] ${message}" | tee -a "${LOG_FILE}"
-    fi
+    # ALWAYS log to stderr to not interfere with command substitutions
+    # tee will still write to the log file.
+    (echo -e "${timestamp} [${level}] ${message}" | tee -a "${LOG_FILE}") >&2
 }
 
 log_info() { log "${BLUE}INFO${NC}" "$@"; }
@@ -85,10 +77,10 @@ get_public_projects_from_api() {
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
     if ! echo "$response" | jq empty 2>/dev/null; then
         log_error "Réponse de l'API invalide."
-        echo "[]"
+        echo "[]" # Return empty JSON array on error
     else
         log_info "Trouvé $(echo "$response" | jq 'length') projets publics."
-        echo "$response"
+        echo "$response" # Return pure JSON on success
     fi
 }
 
@@ -191,8 +183,7 @@ MIME-Version: 1.0
         <li><strong>Licence AGPLv3 :</strong> Tout projet public doit être sous cette licence.</li>
         <li><strong>Fichiers de Contribution et Documentation :</strong> 
             <code>CONTRIBUTING.md</code> et 
-            <code>README.md</code> doivent être présents et de qualité.
-        </li>
+            <code>README.md</code> doivent être présents et de qualité.</li>
     </ul>
     <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
 </body>
@@ -221,7 +212,7 @@ process_project() {
     local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
 
     if is_repo_tracked "$repo_id"; then
-        return 0
+        return 0 # Not a new repo, success.
     fi
 
     log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
@@ -237,7 +228,7 @@ process_project() {
     
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
     local subject_template="${!subject_template_var}"
-    local subject="${subject_template/\$REPONAME/$repo_name}"
+    local subject="${subject_template//\$REPONAME/$repo_name}" # Safer substitution
     
     if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
         add_to_tracking "$repo_id"
@@ -247,9 +238,8 @@ process_project() {
     fi
 }
 
-
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.8 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.5.9 API) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
@@ -264,7 +254,10 @@ main() {
     for i in $(seq 0 $((project_count - 1))); do
         local project_data; project_data=$(echo "$public_projects_json" | jq -c ".[${i}]")
         if process_project "$project_data"; then
-            ((new_repo_count++))
+            # Only increment if it was a new, successfully processed repo
+            if ! is_repo_tracked "$(echo "$project_data" | jq -r '.id')"; then
+                 ((new_repo_count++))
+            fi
         else
             log_warn "Échec du traitement pour le projet $(echo "$project_data" | jq -r .name). Passage au suivant."
         fi
@@ -283,19 +276,21 @@ main() {
 # Entry Point
 #==============================================================================
 
+# Parse arguments after functions are defined
 for arg in "$@"; do
   case $arg in
-    --dry-run) 
+    --dry-run)
       DRY_RUN=true
       shift
-      ;; 
-    --debug) 
+      ;;
+    --debug)
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
+      # Redirect stderr to a process substitution that tees to the log file
       exec 2> >(tee -a "${LOG_FILE}")
       set -x
       shift
-      ;; 
+      ;;
   esac
 done
 
