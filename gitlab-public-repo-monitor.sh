@@ -120,7 +120,7 @@ check_file_exists() {
     local status_code
     status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
     if [[ "$status_code" == "200" ]]; then echo "✅"; return; fi
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
     if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
 }
 
@@ -254,7 +254,7 @@ main() {
         local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
         
         local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\\\$REPONAME/$repo_name/g")
+        local subject; subject=$(echo "${!subject_template_var}" | sed "s/\\$REPONAME/$repo_name/g")
         
         if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
             add_to_tracking "$repo_id"
