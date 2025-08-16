@@ -18,6 +18,8 @@ Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveill
 - **Deux modes d'envoi d'email** : Utilise `sendmail` (par défaut) ou un serveur **SMTP** externe.
 - **Support bilingue** : Messages en français ou anglais.
 - **Logging complet** et **Mode test** (`--dry-run`).
+- **Notification CC optionnelle** : Peut mettre en copie l'auteur du dernier commit.
+- **Sortie améliorée** : Affiche des informations claires sur les dépôts traités, ignorés et les destinataires des emails.
 
 ## 🚀 Installation
 
@@ -87,6 +89,8 @@ A robust shell script that uses the **official GitLab API** to monitor for new p
 - **Dual Email Sending Modes**: Uses `sendmail` (default) or an external **SMTP** server.
 - **Bilingual Support**: Messages in French or English.
 - **Complete Logging** and **Dry-run Mode** (`--dry-run`).
+- **Optional CC Notification**: Can CC the author of the last commit.
+- **Enhanced Output**: Displays clear information about processed, skipped repositories and email recipients.
 
 ## 🚀 Installation
 
