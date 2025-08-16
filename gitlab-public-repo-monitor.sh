@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.6.0
+# Version:  2.7.0-dev
 #
 #==============================================================================
 
@@ -26,6 +26,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
+
+#===[ Bilingual Messages ]===#
+MSG_KNOWN_REPO_FR="Dépôt connu (ID: %s), on ne fait rien : %s"
+MSG_KNOWN_REPO_EN="Known repository (ID: %s), skipping: %s"
+MSG_MAILING_TO_FR="Envoi de l'email à: %s"
+MSG_MAILING_TO_EN="Mailing to: %s"
 
 #==============================================================================
 # Utility Functions
@@ -155,9 +161,14 @@ send_email() {
     fi
 
     local cc_header=""
+    local recipients="$EMAIL_TO"
     if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
         cc_header="Cc: $repo_dev_email"
+        recipients="$recipients, Cc: $repo_dev_email"
     fi
+
+    local msg_var="MSG_MAILING_TO_${NOTIFICATION_LANGUAGE}"
+    log_info "$(printf "${!msg_var}" "$recipients")"
 
     local email_content
     email_content=$(cat <<EOF
@@ -232,6 +243,8 @@ process_project() {
     local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
 
     if is_repo_tracked "$repo_id"; then
+        local msg_var="MSG_KNOWN_REPO_${NOTIFICATION_LANGUAGE}"
+        log_info "$(printf "${!msg_var}" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
         return 0 # Not a new repo, success.
     fi
 
