@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-2.6.0-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)
+[![Version](https://img.shields.io/badge/Version-2.7.0--dev-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
 
 Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveiller l'apparition de nouveaux dépôts publics et envoyer des notifications par email.
 
@@ -25,25 +25,28 @@ Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveill
 
 ### 1. Prérequis
 
-Le script nécessite `curl` et `jq`. `sendmail` est requis uniquement si vous n'utilisez pas de serveur SMTP externe.
+- **Shell** : `bash` version 4 ou supérieure.
+- **Outils en ligne de commande** : `git`, `curl`, `jq`.
+- **Serveur mail** : `sendmail` est requis si vous n'utilisez pas de serveur SMTP externe.
 
 ```bash
 # Pour Debian/Ubuntu
-sudo apt-get update && sudo apt-get install curl jq sendmail
+sudo apt-get update && sudo apt-get install bash git curl jq sendmail
 
 # Pour CentOS/RHEL
-sudo yum install curl jq sendmail
+sudo yum install bash git curl jq sendmail
 ```
 
-### 2. Téléchargement
+### 2. Installation
 
-Téléchargez les 4 fichiers suivants depuis ce dépôt et placez-les dans un même répertoire :
-- `gitlab-public-repo-monitor.sh`
-- `config.conf.example`
-- `template.fr.md`
-- `template.en.md`
+La méthode recommandée est de cloner le dépôt :
+```bash
+git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
+cd gitlabmonitor
+```
+Alternativement, vous pouvez télécharger la dernière version stable depuis la [page des Releases](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
 
-Rendez le script exécutable :
+Une fois les fichiers obtenus, rendez le script exécutable :
 ```bash
 chmod +x gitlab-public-repo-monitor.sh
 ```
@@ -71,12 +74,27 @@ Créez votre fichier de configuration personnel à partir de l'exemple fourni (`
 
 ## 🖥️ Utilisation
 
+### Exécution Manuelle
 ```bash
 # Exécution normale
 ./gitlab-public-repo-monitor.sh
 
-# Mode test (n'envoie pas d'email)
+# Mode test (n'envoie pas d'email et ne met pas à jour le cache)
 ./gitlab-public-repo-monitor.sh --dry-run
+```
+
+### Automatisation (Cron)
+
+Pour exécuter le script automatiquement, vous pouvez ajouter une entrée à votre crontab (`crontab -e`).
+
+**Exemple simple** : Exécution toutes les heures.
+```crontab
+0 * * * * /chemin/complet/vers/gitlab-public-repo-monitor.sh >> /var/log/gitlab-monitor-cron.log 2>&1
+```
+
+**Exemple avancé** : Exécution tous les jours à 7h00, en s'assurant que le script s'exécute depuis son propre répertoire pour une gestion correcte des logs et des fichiers templates.
+```crontab
+0 7 * * * cd /chemin/complet/vers/gitlab-public-repo-monitor/ && ./gitlab-public-repo-monitor.sh
 ```
 
 ## 📊 Exemple de Notification
@@ -108,25 +126,28 @@ A robust shell script that uses the **official GitLab API** to monitor for new p
 
 ### 1. Prerequisites
 
-The script requires `curl` and `jq`. `sendmail` is only required if you are not using an external SMTP server.
+- **Shell**: `bash` version 4 or higher.
+- **Command-line tools**: `git`, `curl`, `jq`.
+- **Mail Server**: `sendmail` is required only if you are not using an external SMTP server.
 
 ```bash
 # For Debian/Ubuntu
-sudo apt-get update && sudo apt-get install curl jq sendmail
+sudo apt-get update && sudo apt-get install bash git curl jq sendmail
 
 # For CentOS/RHEL
-sudo yum install curl jq sendmail
+sudo yum install bash git curl jq sendmail
 ```
 
-### 2. Download
+### 2. Installation
 
-Download the following 4 files from this repository and place them in the same directory:
-- `gitlab-public-repo-monitor.sh`
-- `config.conf.example`
-- `template.fr.md`
-- `template.en.md`
+The recommended method is to clone the repository:
+```bash
+git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
+cd gitlabmonitor
+```
+Alternatively, you can download the latest stable version from the [Releases page](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
 
-Make the script executable:
+Once you have the files, make the script executable:
 ```bash
 chmod +x gitlab-public-repo-monitor.sh
 ```
@@ -154,10 +175,25 @@ Create your personal configuration file from the provided example (`cp config.co
 
 ## 🖥️ Usage
 
+### Manual Execution
 ```bash
 # Normal execution
 ./gitlab-public-repo-monitor.sh
 
-# Dry-run mode (does not send emails)
+# Dry-run mode (does not send emails or update the cache)
 ./gitlab-public-repo-monitor.sh --dry-run
+```
+
+### Automation (Cron)
+
+To run the script automatically, you can add an entry to your crontab (`crontab -e`).
+
+**Simple Example**: Run every hour.
+```crontab
+0 * * * * /full/path/to/gitlab-public-repo-monitor.sh >> /var/log/gitlab-monitor-cron.log 2>&1
+```
+
+**Advanced Example**: Run every day at 7:00 AM, ensuring the script runs from its own directory for proper log and template file handling.
+```crontab
+0 7 * * * cd /full/path/to/gitlab-public-repo-monitor/ && ./gitlab-public-repo-monitor.sh
 ```
