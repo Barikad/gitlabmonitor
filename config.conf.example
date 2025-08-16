@@ -51,14 +51,10 @@ EMAIL_SUBJECT_EN="⚠️ New public repository detected: \$REPONAME"
 # Si vous préférez utiliser un serveur SMTP externe plutôt que la commande sendmail locale,
 # remplissez les détails ci-dessous. Si SMTP_SERVER est défini, le script utilisera curl.
 # SMTP_SERVER="smtp.example.com"
-# SMTP_PORT="25"
-
-#===[ Carbon Copy (CC) Options ]===#
-# Set to 'true' to CC the last committer on the notification email.
-# The committer's email is retrieved via the GitLab API.
-# Mettre à 'true' pour mettre en copie (CC) le dernier committer sur l'email de notification.
-# L'email du committer est récupéré via l'API GitLab.
-CC_COMMIT_AUTHOR=false
+# SMTP_PORT="25"  # (587 for TLS, 465 for SSL)
+# SMTP_USER="your_smtp_user"
+# SMTP_PASS="your_password"
+# SMTP_TLS="true"  # Set to "true" to use SMTPS (recommended)
 
 #===[ Carbon Copy (CC) Options ]===#
 # Set to 'true' to CC the last committer on the notification email.

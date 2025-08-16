@@ -50,12 +50,24 @@ chmod +x gitlab-public-repo-monitor.sh
 
 ### 3. Configuration
 
-Créez votre fichier de configuration personnel à partir de l'exemple fourni :
-```bash
-cp config.conf.example config.conf
-nano config.conf
-```
-Adaptez au minimum les variables `GITLAB_URL`, `EMAIL_TO` et `EMAIL_FROM` à votre environnement.
+Créez votre fichier de configuration personnel à partir de l'exemple fourni (`cp config.conf.example config.conf`) et ajustez les variables suivantes selon vos besoins :
+
+| Variable | Description | Défaut |
+|---|---|---|
+| `GITLAB_URL` | URL de votre instance GitLab. | `"https://gitlab.example.com"` |
+| `NOTIFICATION_LANGUAGE` | Langue des notifications (`FR` ou `EN`). | `"FR"` |
+| `EMAIL_TO` | Destinataire principal des alertes. | `"admin@example.com"` |
+| `EMAIL_FROM` | Expéditeur des alertes. | `"gitlab-monitor@example.com"` |
+| `EMAIL_SUBJECT_FR` / `_EN` | Sujet des emails (utilise `$REPONAME`). | `...` |
+| `SMTP_SERVER` | (Optionnel) Serveur SMTP pour l'envoi. | `""` |
+| `SMTP_PORT` | (Optionnel) Port du serveur SMTP. | `"25"` |
+| `SMTP_USER` | (Optionnel) Utilisateur pour l'authentification SMTP. | `""` |
+| `SMTP_PASS` | (Optionnel) Mot de passe pour l'authentification SMTP. | `""` |
+| `SMTP_TLS` | (Optionnel) Mettre à `"true"` pour utiliser SMTPS. | `""` |
+| `CC_COMMIT_AUTHOR` | Mettre à `true` pour mettre en copie l'auteur du dernier commit. | `false` |
+| `API_TIMEOUT` | Timeout en secondes pour les appels API. | `30` |
+| `LOG_LEVEL` | Niveau de log (`DEBUG`, `INFO`, `WARN`, `ERROR`). | `"INFO"` |
+
 
 ## 🖥️ Utilisation
 
@@ -121,12 +133,24 @@ chmod +x gitlab-public-repo-monitor.sh
 
 ### 3. Configuration
 
-Create your personal configuration file from the provided example:
-```bash
-cp config.conf.example config.conf
-nano config.conf
-```
-At a minimum, adapt the `GITLAB_URL`, `EMAIL_TO`, and `EMAIL_FROM` variables to your environment. You can also enable CCing the commit author with `CC_COMMIT_AUTHOR=true`.
+Create your personal configuration file from the provided example (`cp config.conf.example config.conf`) and adjust the following variables to your needs:
+
+| Variable | Description | Default |
+|---|---|---|
+| `GITLAB_URL` | URL of your GitLab instance. | `"https://gitlab.example.com"` |
+| `NOTIFICATION_LANGUAGE` | Notification language (`FR` or `EN`). | `"FR"` |
+| `EMAIL_TO` | Primary recipient for alerts. | `"admin@example.com"` |
+| `EMAIL_FROM` | Sender of the alerts. | `"gitlab-monitor@example.com"` |
+| `EMAIL_SUBJECT_FR` / `_EN` | Email subject (uses `$REPONAME`). | `...` |
+| `SMTP_SERVER` | (Optional) SMTP server for sending emails. | `""` |
+| `SMTP_PORT` | (Optional) SMTP server port. | `"25"` |
+| `SMTP_USER` | (Optional) User for SMTP authentication. | `""` |
+| `SMTP_PASS` | (Optional) Password for SMTP authentication. | `""` |
+| `SMTP_TLS` | (Optional) Set to `"true"` to use SMTPS. | `""` |
+| `CC_COMMIT_AUTHOR` | Set to `true` to CC the last commit author. | `false` |
+| `API_TIMEOUT` | Timeout in seconds for API calls. | `30` |
+| `LOG_LEVEL` | Log level (`DEBUG`, `INFO`, `WARN`, `ERROR`). | `"INFO"` |
+
 
 ## 🖥️ Usage
 
