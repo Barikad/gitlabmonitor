@@ -170,61 +170,50 @@ send_email() {
     local msg_var="MSG_MAILING_TO_${NOTIFICATION_LANGUAGE}"
     log_info "$(printf "${!msg_var}" "$recipients")"
 
+    local lang_code="${NOTIFICATION_LANGUAGE,,}"
+    local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
+    if [[ ! -f "$template_file" ]]; then
+        log_error "Template file not found: $template_file"
+        return 1
+    fi
+    local email_body; email_body=$(cat "$template_file")
+
+    # Replace placeholders
+    email_body="${email_body//\$REPONAME/$repo_name}"
+    email_body="${email_body//\$REPODEV/$repo_dev}"
+    email_body="${email_body//\$REPOURL/$repo_url}"
+    email_body="${email_body//\$HAS_LICENSE/$has_license}"
+    email_body="${email_body//\$HAS_README/$has_readme}"
+    email_body="${email_body//\$HAS_CONTRIBUTING/$has_contributing}"
+
+    # Encode subject according to RFC 2047 for MIME headers, handling long lines by folding.
+    local encoded_subject
+    encoded_subject=$(echo -n "$subject" | base64 | sed 's/.*/ =?UTF-8?B?&?=/g' | tr -d '\n' | sed 's/^ //')
+
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
 $cc_header
-Subject: =?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?=
+Subject: $encoded_subject
 Content-Type: text/html; charset=UTF-8
 MIME-Version: 1.0
 
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-    body { font-family: sans-serif; line-height: 1.6; margin: 20px; color: #333; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; font-weight: bold; }
-    h3 { color: #d9534f; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
-    ul { padding-left: 20px; }
-    li { margin-bottom: 5px; }
-</style>
-</head>
-<body>
-    <p>Bonjour, nous avons détecté la présence d'un dépôt Gitlab accessible publiquement.</p>
-    <p>C'est la première détection de ce dépôt et <strong>vous ne serez plus notifié à l'avenir.</strong></p>
-    <table>
-        <tr><th>Nom du dépôt:</th><td>$repo_name</td></tr>
-        <tr><th>Dernier commit par:</th><td>$repo_dev</td></tr>
-        <tr><th>Publié à l'adresse:</th><td><a href="$repo_url">$repo_url</a></td></tr>
-        <tr><th>Présence d'une licence:</th><td>$has_license</td></tr>
-        <tr><th>Présence d'une documentation:</th><td>$has_readme</td></tr>
-        <tr><th>Présence d'un guide de contribution:</th><td>$has_contributing</td></tr>
-    </table>
-    <hr>
-    <h3>⚠️ Avertissement Important concernant les Dépôts Publics</h3>
-    <p>Pour les dépôts accessible publiquement sur Internet, il est <strong>impératif</strong> de respecter les règles suivantes :</p>
-    <ul>
-        <li><strong>Aucune Information Sensible :</strong> Les scripts ne doivent contenir aucun nom, IP, secret ou information spécifique à notre organisation.</li>
-        <li><strong>Code Générique :</strong> Seuls les scripts généralistes et réutilisables sont éligibles.</li>
-        <li><strong>Licence AGPLv3 :</strong> Tout projet public doit être sous cette licence.</li>
-        <li><strong>Fichiers de Contribution et Documentation :</strong> 
-            <code>CONTRIBUTING.md</code> et 
-            <code>README.md</code> doivent être présents et de qualité.</li>
-    </ul>
-    <p>Le non-respect de ces règles peut entraîner des risques de sécurité majeurs.</p>
-</body>
-</html>
+$email_body
 EOF
 )
 
     if [[ -n "${SMTP_SERVER:-}" ]]; then
         log_info "Utilisation du serveur SMTP ($SMTP_SERVER)..."
-        echo -e "$email_content" | curl -s --url "smtp://${SMTP_SERVER}:${SMTP_PORT:-25}" --mail-from "$EMAIL_FROM" --mail-rcpt "$EMAIL_TO" --upload-file -
+        local curl_recipients=()
+        curl_recipients+=("--mail-rcpt" "$EMAIL_TO")
+        if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
+            curl_recipients+=("--mail-rcpt" "$repo_dev_email")
+        fi
+        echo -e "$email_content" | curl -s --url "smtp://${SMTP_SERVER}:${SMTP_PORT:-25}" \
+            --mail-from "$EMAIL_FROM" \
+            "${curl_recipients[@]}" \
+            --upload-file -
     else
         log_info "Utilisation de sendmail..."
         echo -e "$email_content" | sendmail -t
@@ -233,6 +222,7 @@ EOF
     if [[ $? -eq 0 ]]; then log_success "Email envoyé pour '$repo_name'."; return 0;
     else log_error "Échec de l'envoi de l'email pour '$repo_name'."; return 1; fi
 }
+
 
 #==============================================================================
 # Main Logic
