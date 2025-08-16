@@ -60,6 +60,13 @@ EMAIL_SUBJECT_EN="⚠️ New public repository detected: \$REPONAME"
 # L'email du committer est récupéré via l'API GitLab.
 CC_COMMIT_AUTHOR=false
 
+#===[ Carbon Copy (CC) Options ]===#
+# Set to 'true' to CC the last committer on the notification email.
+# The committer's email is retrieved via the GitLab API.
+# Mettre à 'true' pour mettre en copie (CC) le dernier committer sur l'email de notification.
+# L'email du committer est récupéré via l'API GitLab.
+CC_COMMIT_AUTHOR=false
+
 
 #------------------------------------------------------------------------------
 # Configuration avancée (Optionnelle)
