@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.7.0
+# Version:  2.8.0-dev
 #
 #==============================================================================
 
