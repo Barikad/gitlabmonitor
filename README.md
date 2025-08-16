@@ -122,7 +122,7 @@ Create your personal configuration file from the provided example:
 cp config.conf.example config.conf
 nano config.conf
 ```
-At a minimum, adapt the `GITLAB_URL`, `EMAIL_TO`, and `EMAIL_FROM` variables to your environment.
+At a minimum, adapt the `GITLAB_URL`, `EMAIL_TO`, and `EMAIL_FROM` variables to your environment. You can also enable CCing the commit author with `CC_COMMIT_AUTHOR=true`.
 
 ## 🖥️ Usage
 
