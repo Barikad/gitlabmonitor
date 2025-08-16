@@ -201,10 +201,14 @@ send_email() {
     ul { padding-left: 20px; }
     li { margin-bottom: 10px; }
     code { background-color: #eee; padding: 2px 4px; border-radius: 3px; }
+    .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; font-size: 0.9em; color: #777; }
 </style>
 </head>
 <body>
 ${email_body_content}
+<div class="footer">
+    Email généré par <a href="https://gitlab.villejuif.fr/depots-public/gitlabmonitor">GitLabMonitor</a>.
+</div>
 </body>
 </html>
 EOF

@@ -10,7 +10,7 @@
 </table>
 <hr>
 <h3>⚠️ Avertissement Important concernant les Dépôts Publics</h3>
-<p>Pour les dépôts accessible publiquement sur Internet, il est <strong>impératif</strong> de respecter les règles suivantes avant toute publication sur notre plateforme Gitlab:</p>
+<p>Pour les dépôts accessibles publiquement sur Internet, il est <strong>impératif</strong> de respecter les règles suivantes avant toute publication sur notre plateforme GitLab :</p>
 <ol>
     <li><strong>Aucune Information Sensible ou Spécifique à notre organisation</strong> :
         <ul>
@@ -22,7 +22,7 @@
                 </ul>
             </li>
             <li>Toute information qui pourrait identifier notre infrastructure ou nos pratiques internes doit être <strong>abstraite, généralisée ou supprimée</strong>.</li>
-            <li>Afin de détecter la présence de secret, vous pouvez utiliser des solutions comme <a href="https://github.com/gitleaks/gitleaks">GitLeak</a> ou, en plus léger, <a href="https://gitlab.villejuif.fr/depots-public/findsecretsleak">FindSecretLeak</a>.</li>
+            <li>Afin de détecter la présence de secrets, vous pouvez utiliser des solutions comme <a href="https://github.com/gitleaks/gitleaks">Gitleaks</a> ou, en plus léger, <a href="https://gitlab.villejuif.fr/depots-public/findsecretsleak">FindSecretLeak</a>.</li>
         </ul>
     </li>
     <li><strong>Conditions d'Éligibilité à la Publication</strong> :
@@ -38,12 +38,12 @@
     </li>
     <li><strong>Fichier de Contribution</strong> :
         <ul>
-            <li>Chaque projet publié doit contenir un fichier <code>CONTRIBUTING.md</code> à sa racine. Ce document doit expliquer clairement quels sont les contribution souhaitées et sous quelles formes.</li>
+            <li>Chaque projet publié doit contenir un fichier <code>CONTRIBUTING.md</code> à sa racine. Ce document doit expliquer clairement quelles sont les contributions souhaitées et sous quelles formes.</li>
         </ul>
     </li>
     <li><strong>Documentation de Qualité (<code>README.md</code>)</strong> :
         <ul>
-            <li>Le <code>README.md</code> doit être <strong>complet, clair et utile</strong>. Il doit inclure une description de l'objectif, le fonctionnement, les instructions d'installation, un tableau des paramètres, et des exemples d'utilisation. L'adjonction de badges ou d'une version bilingue (Francais/Anglais) peut être un plus.</li>
+            <li>Le <code>README.md</code> doit être <strong>complet, clair et utile</strong>. Il doit inclure une description de l'objectif, le fonctionnement, les instructions d'installation, un tableau des paramètres, et des exemples d'utilisation. L'adjonction de badges ou d'une version bilingue (Français/Anglais) peut être un plus.</li>
         </ul>
     </li>
 </ol>
