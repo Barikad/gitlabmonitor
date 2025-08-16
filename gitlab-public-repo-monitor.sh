@@ -30,7 +30,7 @@ NC='\033[0m'
 #===[ Bilingual Messages ]===#
 MSG_KNOWN_REPO_FR="Dépôt connu (ID: %s), on ne fait rien : %s"
 MSG_KNOWN_REPO_EN="Known repository (ID: %s), skipping: %s"
-MSG_MAILING_TO_FR="Envoi de l'email à: %s"
+MSG_MAILING_TO_FR="Envoi de lEmail à: %s"
 MSG_MAILING_TO_EN="Mailing to: %s"
 
 #==============================================================================
@@ -77,12 +77,12 @@ load_config_and_check_deps() {
 #==============================================================================
 
 get_public_projects_from_api() {
-    log_info "Récupération des projets publics via l'API..."
+    log_info "Récupération des projets publics via lAPI..."
     local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=last_activity_at&sort=desc&per_page=100"
     local response
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
     if ! echo "$response" | jq empty 2>/dev/null; then
-        log_error "Réponse de l'API invalide."
+        log_error "Réponse de lAPI invalide."
         echo "[]" # Return empty JSON array on error
     else
         log_info "Trouvé $(echo "$response" | jq 'length') projets publics."
@@ -222,223 +222,13 @@ MIME-Version: 1.0
 EOF
 )
     if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
-        email_headers+=
-
-
-#==============================================================================
-# Main Logic
-#==============================================================================
-
-process_project() {
-    local project_json="$1"
-    local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-
-    if is_repo_tracked "$repo_id"; then
-        local msg_var="MSG_KNOWN_REPO_${NOTIFICATION_LANGUAGE}"
-        log_info "$(printf "${!msg_var}" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
-        return 0 # Not a new repo, success.
+        email_headers+=$'\n''Cc: '$repo_dev_email
     fi
 
-    log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-    
-    local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-    local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-    local repo_http_url; repo_http_url=$(echo "$project_json" | jq -r '.http_url_to_repo')
-    
-    # Read committer info into separate variables
-    local committer_info; committer_info=$(get_last_committer "$repo_id")
-    local repo_dev; repo_dev=$(echo "$committer_info" | head -n 1)
-    local repo_dev_email; repo_dev_email=$(echo "$committer_info" | tail -n 1)
-
-    # Check for files using git clone
-    local file_statuses; file_statuses=$(check_files_via_git_clone "$repo_http_url")
-    read -r has_license has_readme has_contributing <<< "$file_statuses"
-    
-    # Prepare subject
-    local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject_template="${!subject_template_var}"
-    local subject="${subject_template//\$REPONAME/$repo_name}"
-    
-    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing" "$repo_dev_email"; then
-        if [[ "$DRY_RUN" == "false" ]]; then
-            add_to_tracking "$repo_id"
-        fi
-        return 0 # Success
-    else
-        return 1 # Failure
-    fi
-}
-
-main() {
-    log_info "=== Début du monitoring GitLab (v2.5.9 API) ==="
-    load_config_and_check_deps
-    touch "$TRACKING_FILE"
-    
-    local public_projects_json; public_projects_json=$(get_public_projects_from_api)
-    local project_count; project_count=$(echo "$public_projects_json" | jq 'length')
-    
-    if [[ "$project_count" -eq 0 ]]; then log_info "Aucun projet public trouvé."; exit 0; fi
-    
-    log_info "Analyse de ${project_count} projets..."
-    local new_repo_count=0
-    
-    for i in $(seq 0 $((project_count - 1))); do
-        local project_data; project_data=$(echo "$public_projects_json" | jq -c ".[${i}]")
-        if process_project "$project_data"; then
-            # Only increment if it was a new, successfully processed repo
-            if ! is_repo_tracked "$(echo "$project_data" | jq -r '.id')"; then
-                 ((new_repo_count++))
-            fi
-        else
-            log_warn "Échec du traitement pour le projet $(echo "$project_data" | jq -r .name). Passage au suivant."
-        fi
-    done
-
-    if [[ $new_repo_count -eq 0 ]]; then
-        log_info "Aucun nouveau dépôt à notifier."
-    else
-        log_success "$new_repo_count nouveaux dépôts traités."
-    fi
-    
-    log_info "=== Fin du monitoring GitLab. ==="
-}
-
-#==============================================================================
-# Entry Point
-#==============================================================================
-
-# Parse arguments after functions are defined
-for arg in "$@"; do
-  case $arg in
-    --dry-run)
-      DRY_RUN=true
-      shift
-      ;;
-    --debug)
-      DEBUG_MODE=true
-      LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      # Redirect stderr to a process substitution that tees to the log file
-      exec 2> >(tee -a "${LOG_FILE}")
-      set -x
-      shift
-      ;;
-  esac
-done
-
-main
-\nCC: $repo_dev_email'
-    fi
-
-    local email_content="${email_headers}"
-
-
-#==============================================================================
-# Main Logic
-#==============================================================================
-
-process_project() {
-    local project_json="$1"
-    local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
-
-    if is_repo_tracked "$repo_id"; then
-        local msg_var="MSG_KNOWN_REPO_${NOTIFICATION_LANGUAGE}"
-        log_info "$(printf "${!msg_var}" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
-        return 0 # Not a new repo, success.
-    fi
-
-    log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
-    
-    local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-    local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-    local repo_http_url; repo_http_url=$(echo "$project_json" | jq -r '.http_url_to_repo')
-    
-    # Read committer info into separate variables
-    local committer_info; committer_info=$(get_last_committer "$repo_id")
-    local repo_dev; repo_dev=$(echo "$committer_info" | head -n 1)
-    local repo_dev_email; repo_dev_email=$(echo "$committer_info" | tail -n 1)
-
-    # Check for files using git clone
-    local file_statuses; file_statuses=$(check_files_via_git_clone "$repo_http_url")
-    read -r has_license has_readme has_contributing <<< "$file_statuses"
-    
-    # Prepare subject
-    local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject_template="${!subject_template_var}"
-    local subject="${subject_template//\$REPONAME/$repo_name}"
-    
-    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing" "$repo_dev_email"; then
-        if [[ "$DRY_RUN" == "false" ]]; then
-            add_to_tracking "$repo_id"
-        fi
-        return 0 # Success
-    else
-        return 1 # Failure
-    fi
-}
-
-main() {
-    log_info "=== Début du monitoring GitLab (v2.5.9 API) ==="
-    load_config_and_check_deps
-    touch "$TRACKING_FILE"
-    
-    local public_projects_json; public_projects_json=$(get_public_projects_from_api)
-    local project_count; project_count=$(echo "$public_projects_json" | jq 'length')
-    
-    if [[ "$project_count" -eq 0 ]]; then log_info "Aucun projet public trouvé."; exit 0; fi
-    
-    log_info "Analyse de ${project_count} projets..."
-    local new_repo_count=0
-    
-    for i in $(seq 0 $((project_count - 1))); do
-        local project_data; project_data=$(echo "$public_projects_json" | jq -c ".[${i}]")
-        if process_project "$project_data"; then
-            # Only increment if it was a new, successfully processed repo
-            if ! is_repo_tracked "$(echo "$project_data" | jq -r '.id')"; then
-                 ((new_repo_count++))
-            fi
-        else
-            log_warn "Échec du traitement pour le projet $(echo "$project_data" | jq -r .name). Passage au suivant."
-        fi
-    done
-
-    if [[ $new_repo_count -eq 0 ]]; then
-        log_info "Aucun nouveau dépôt à notifier."
-    else
-        log_success "$new_repo_count nouveaux dépôts traités."
-    fi
-    
-    log_info "=== Fin du monitoring GitLab. ==="
-}
-
-#==============================================================================
-# Entry Point
-#==============================================================================
-
-# Parse arguments after functions are defined
-for arg in "$@"; do
-  case $arg in
-    --dry-run)
-      DRY_RUN=true
-      shift
-      ;;
-    --debug)
-      DEBUG_MODE=true
-      LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      # Redirect stderr to a process substitution that tees to the log file
-      exec 2> >(tee -a "${LOG_FILE}")
-      set -x
-      shift
-      ;;
-  esac
-done
-
-main
-
-
-''${email_body}"
+    local email_content="${email_headers}"$''$''\n\n"${email_body}"
 
     if [[ -n "${SMTP_SERVER:-}" ]]; then
-        log_info "Utilisation du serveur SMTP ($SMTP_SERVER)...
+        log_info "Utilisation du serveur SMTP ($SMTP_SERVER)..."
         local curl_recipients=()
         curl_recipients+=("--mail-rcpt" "$EMAIL_TO")
         if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
@@ -454,7 +244,7 @@ main
     fi
 
     if [[ $? -eq 0 ]]; then log_success "Email envoyé pour '$repo_name'."; return 0;
-    else log_error "Échec de l'envoi de l'email pour '$repo_name'."; return 1; fi
+    else log_error "Échec de lEnvoi de lEmail pour '$repo_name'."; return 1; fi
 }
 
 
