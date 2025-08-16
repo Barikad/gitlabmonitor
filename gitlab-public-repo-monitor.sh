@@ -89,10 +89,14 @@ get_last_committer() {
     local api_url="${GITLAB_URL}/api/v4/projects/${project_id}/repository/commits?per_page=1"
     local response
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
+    
+    # Return both name and email, separated by a newline
     if echo "$response" | jq -e '.[0].author_name' > /dev/null 2>&1; then
         echo "$response" | jq -r '.[0].author_name'
+        echo "$response" | jq -r '.[0].author_email'
     else
         echo "N/A"
+        echo "" # Empty email
     fi
 }
 
@@ -143,16 +147,23 @@ send_email() {
     local has_license="$5"
     local has_readme="$6"
     local has_contributing="$7"
+    local repo_dev_email="$8"
 
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
         return 0
     fi
 
+    local cc_header=""
+    if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
+        cc_header="Cc: $repo_dev_email"
+    fi
+
     local email_content
     email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
+$cc_header
 Subject: =?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?=
 Content-Type: text/html; charset=UTF-8
 MIME-Version: 1.0
@@ -229,7 +240,11 @@ process_project() {
     local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
     local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
     local repo_http_url; repo_http_url=$(echo "$project_json" | jq -r '.http_url_to_repo')
-    local repo_dev; repo_dev=$(get_last_committer "$repo_id")
+    
+    # Read committer info into separate variables
+    local committer_info; committer_info=$(get_last_committer "$repo_id")
+    local repo_dev; repo_dev=$(echo "$committer_info" | head -n 1)
+    local repo_dev_email; repo_dev_email=$(echo "$committer_info" | tail -n 1)
 
     # Check for files using git clone
     local file_statuses; file_statuses=$(check_files_via_git_clone "$repo_http_url")
@@ -240,7 +255,7 @@ process_project() {
     local subject_template="${!subject_template_var}"
     local subject="${subject_template//\$REPONAME/$repo_name}"
     
-    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
+    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing" "$repo_dev_email"; then
         if [[ "$DRY_RUN" == "false" ]]; then
             add_to_tracking "$repo_id"
         fi
