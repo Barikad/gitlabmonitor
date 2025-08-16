@@ -210,7 +210,7 @@ ${email_body_content}
 EOF
 )
 
-    local encoded_subject="=?UTF-8?B?$(echo -n "$subject" | base64)?="
+    local encoded_subject="=?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?="
     
     local email_headers
     email_headers=$(cat <<EOF
