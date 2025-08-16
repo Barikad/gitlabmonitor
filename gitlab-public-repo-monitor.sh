@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.7.0
+# Version:  2.8.0-dev
 #
 #==============================================================================
 
@@ -216,20 +216,25 @@ EOF
 
     local encoded_subject="=?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?="
     
-    local email_headers
-    email_headers=$(cat <<EOF
-To: $EMAIL_TO
-From: $EMAIL_FROM
-Subject: $encoded_subject
-Content-Type: text/html; charset=UTF-8
-MIME-Version: 1.0
-EOF
-)
+    # Build headers line by line for robustness
+    local email_headers="To: $EMAIL_TO
+"
+    email_headers+="From: $EMAIL_FROM
+"
+    email_headers+="Subject: $encoded_subject
+"
     if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
-        email_headers+=$'\n''Cc: '$repo_dev_email
+        email_headers+="Cc: $repo_dev_email
+"
     fi
+    email_headers+="Content-Type: text/html; charset=UTF-8
+"
+    email_headers+="MIME-Version: 1.0"
 
-    local email_content="${email_headers}"$''$''\n\n"${email_body}"
+    # The final email content requires a blank line between headers and body
+    local email_content="${email_headers}
+
+${email_body}"
 
     if [[ -n "${SMTP_SERVER:-}" ]]; then
         log_info "Utilisation du serveur SMTP ($SMTP_SERVER)..."
