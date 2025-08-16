@@ -176,15 +176,41 @@ send_email() {
         log_error "Template file not found: $template_file"
         return 1
     fi
-    local email_body; email_body=$(cat "$template_file")
+    local email_body_content; email_body_content=$(cat "$template_file")
 
     # Replace placeholders
-    email_body="${email_body//\$REPONAME/$repo_name}"
-    email_body="${email_body//\$REPODEV/$repo_dev}"
-    email_body="${email_body//\$REPOURL/$repo_url}"
-    email_body="${email_body//\$HAS_LICENSE/$has_license}"
-    email_body="${email_body//\$HAS_README/$has_readme}"
-    email_body="${email_body//\$HAS_CONTRIBUTING/$has_contributing}"
+    email_body_content="${email_body_content//\$REPONAME/$repo_name}"
+    email_body_content="${email_body_content//\$REPODEV/$repo_dev}"
+    email_body_content="${email_body_content//\$REPOURL/$repo_url}"
+    email_body_content="${email_body_content//\$HAS_LICENSE/$has_license}"
+    email_body_content="${email_body_content//\$HAS_README/$has_readme}"
+    email_body_content="${email_body_content//\$HAS_CONTRIBUTING/$has_contributing}"
+
+    # Construct the full HTML body
+    local email_body
+    email_body=$(cat <<EOF
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+    body { font-family: sans-serif; line-height: 1.6; margin: 20px; color: #333; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; font-weight: bold; }
+    h3 { color: #d9534f; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    hr { border: 0; border-top: 1px solid #eee; margin: 20px 0; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 10px; }
+    code { background-color: #eee; padding: 2px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+${email_body_content}
+</body>
+</html>
+EOF
+)
 
     # Encode subject according to RFC 2047 for MIME headers, handling long lines by folding.
     local encoded_subject
