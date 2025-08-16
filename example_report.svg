@@ -1,72 +1,38 @@
-<svg width="750" height="580" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      .container { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-      .header { font-size: 16px; fill: #333; }
-      .strong { font-weight: bold; }
-      .table { font-size: 13px; }
-      .table .label { font-weight: bold; }
-      .table .check-ok { fill: #27ae60; font-family: 'Arial'; }
-      .table .check-ko { fill: #c0392b; font-family: 'Arial'; }
-      .warning-header { font-size: 15px; font-weight: bold; fill: #c0392b; }
-      .warning-text { font-size: 12px; fill: #333; }
-      .list-item { font-size: 12px; fill: #333; }
-    </style>
-  </defs>
+<svg width="800" height="450" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <style>
+    .title { font-size: 20px; font-weight: bold; fill: #2c3e50; }
+    .header { font-size: 14px; font-weight: bold; fill: #34495e; }
+    .text { font-size: 14px; fill: #34495e; }
+    .repo-name { font-size: 16px; font-weight: bold; fill: #2980b9; }
+    .check { fill: #27ae60; }
+    .cross { fill: #c0392b; }
+    .warning-title { font-size: 16px; font-weight: bold; fill: #d35400; }
+  </style>
+  <rect width="100%" height="100%" fill="#f8f9fa"/>
+  
+  <text x="20" y="40" class="title">📧 New Public Repository Notification</text>
+  
+  <rect x="20" y="70" width="760" height="120" rx="5" ry="5" fill="#ffffff" stroke="#dee2e6"/>
+  <text x="40" y="95" class="header">Repository Name:</text>
+  <text x="250" y="95" class="repo-name">ExampleProject</text>
+  
+  <text x="40" y="120" class="header">Last commit by:</text>
+  <text x="250" y="120" class="text">J. COQBLIN</text>
+  
+  <text x="40" y="145" class="header">URL:</text>
+  <text x="250" y="145" class="text" fill="#3498db">https://gitlab.example.com/group/project</text>
+  
+  <text x="40" y="170" class="header">Checks:</text>
+  <text x="250" y="170" class="check">✅ License</text>
+  <text x="350" y="170" class="check">✅ README.md</text>
+  <text x="480" y="170" class="cross">❌ CONTRIBUTING.md</text>
 
-  <rect x="1" y="1" width="748" height="578" fill="#ffffff" stroke="#e9ecef" stroke-width="2" rx="8" />
-
-  <g class="container">
-    <!-- Header -->
-    <text x="25" y="40" class="header">Hello,</text>
-    <text x="25" y="65" class="header">A new publicly accessible GitLab repository has been detected: <tspan class="strong">$REPONAME</tspan>.</text>
-    <text x="25" y="90" class="header">This is the first and only notification for this repository.</text>
-
-    <!-- Table -->
-    <g class="table">
-      <rect x="25" y="120" width="700" height="35" fill="#f7f7f7" />
-      <rect x="25" y="120" width="700" height="155" fill="none" stroke="#ddd" />
-      <line x1="25" y1="155" x2="725" y2="155" stroke="#ddd" />
-      <line x1="25" y1="190" x2="725" y2="190" stroke="#ddd" />
-      <line x1="25" y1="225" x2="725" y2="225" stroke="#ddd" />
-      <line x1="25" y1="260" x2="725" y2="260" stroke="#ddd" />
-      <line x1="200" y1="120" x2="200" y2="275" stroke="#ddd" />
-
-      <text x="40" y="143" class="label">Attribute</text>
-      <text x="215" y="143" class="label">Value</text>
-      
-      <text x="40" y="178" class="label">Repository Name</text>
-      <text x="215" y="178" class="value strong">corporate-website-v2</text>
-      
-      <text x="40" y="213" class="label">Last commit by</text>
-      <text x="215" y="213" class="value">Jane Doe</text>
-      
-      <text x="40" y="248" class="label">URL</text>
-      <text x="215" y="248" class="value">https://gitlab.example.com/marketing/corporate-website-v2</text>
-      
-      <text x="40" y="280" class="label">LICENSE file</text>
-      <text x="215" y="280" class="check-ok">✅</text>
-      
-      <text x="40" y="305" class="label">README.md file</text>
-      <text x="215" y="305" class="check-ok">✅</text>
-      
-      <text x="40" y="330" class="label">CONTRIBUTING.md file</text>
-      <text x="215" y="330" class="check-ko">❌</text>
-    </g>
-    
-    <line x1="25" y1="360" x2="725" y2="360" stroke="#eee" stroke-width="1.5" />
-
-    <!-- Warning Section -->
-    <g>
-      <text x="25" y="390" class="warning-header">⚠️ Publication Policy Reminder</text>
-      <text x="40" y="420" class="list-item"><tspan font-weight="bold">1. No sensitive information:</tspan> No secrets, credentials, internal IPs, etc.</text>
-      <text x="55" y="438" class="list-item">Use tools like FindSecretLeak to check.</text>
-      
-      <text x="40" y="463" class="list-item"><tspan font-weight="bold">2. Generic code:</tspan> Code must be reusable and not environment-specific.</text>
-      
-      <text x="40" y="488" class="list-item"><tspan font-weight="bold">3. AGPLv3 License:</tspan> All public repositories must use this license.</text>
-      
-      <text x="40" y="513" class="list-item"><tspan font-weight="bold">4. `CONTRIBUTING.md` and `README.md` files:</tspan> Must be present and of high quality.</text>
-    </g>
-  </g>
+  <rect x="20" y="210" width="760" height="220" rx="5" ry="5" fill="#fff8f2" stroke="#ffd8b2"/>
+  <text x="40" y="240" class="warning-title">⚠️ Important Warning</text>
+  <text x="40" y="270" class="text">• No sensitive information (secrets, IPs, etc.).</text>
+  <text x="40" y="295" class="text">• Code must be generic and reusable.</text>
+  <text x="40" y="320" class="text">• AGPLv3 license is mandatory.</text>
+  <text x="40" y="345" class="text">• README.md and CONTRIBUTING.md files are required.</text>
+  <text x="40" y="370" class="text">• Non-compliance may result in repository deletion.</text>
+  
 </svg>

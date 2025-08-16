@@ -96,18 +96,27 @@ get_last_committer() {
     fi
 }
 
-check_file_exists() {
-    local project_path_with_namespace="$1"
-    local file_path="$2"
-    local encoded_project_path
-    encoded_project_path=$(printf %s "$project_path_with_namespace" | jq -sRr @uri)
-    local status_code
-    # Check main branch
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=main")
-    if [[ "$status_code" == "200" ]]; then echo "✅"; return 0; fi
-    # Check master branch as a fallback
-    status_code=$(curl -s -o /dev/null -w "%{{http_code}}" "${GITLAB_URL}/api/v4/projects/${encoded_project_path}/repository/files/${file_path}?ref=master")
-    if [[ "$status_code" == "200" ]]; then echo "✅"; else echo "❌"; fi
+check_files_via_git_clone() {
+    local repo_http_url="$1"
+    local temp_dir; temp_dir=$(mktemp -d)
+    
+    log_info "Clonage superficiel de ${repo_http_url}..."
+    if git clone --depth 1 --quiet "$repo_http_url" "$temp_dir"; then
+        local license_status="❌"
+        local readme_status="❌"
+        local contributing_status="❌"
+        
+        if [[ -f "${temp_dir}/LICENSE" ]]; then license_status="✅"; fi
+        if [[ -f "${temp_dir}/README.md" ]]; then readme_status="✅"; fi
+        if [[ -f "${temp_dir}/CONTRIBUTING.md" ]]; then contributing_status="✅"; fi
+        
+        echo "$license_status $readme_status $contributing_status"
+    else
+        log_error "Échec du clonage de ${repo_http_url}"
+        echo "❌ ❌ ❌"
+    fi
+    
+    rm -rf "$temp_dir"
 }
 
 #==============================================================================
@@ -144,7 +153,7 @@ send_email() {
     email_content=$(cat <<EOF
 To: $EMAIL_TO
 From: $EMAIL_FROM
-Subject: =?UTF-8?B?$(echo -n "$subject" | base64)?=
+Subject: =?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?=
 Content-Type: text/html; charset=UTF-8
 MIME-Version: 1.0
 
@@ -219,19 +228,22 @@ process_project() {
     
     local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
     local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-    local repo_path; repo_path=$(echo "$project_json" | jq -r '.path_with_namespace')
+    local repo_http_url; repo_http_url=$(echo "$project_json" | jq -r '.http_url_to_repo')
     local repo_dev; repo_dev=$(get_last_committer "$repo_id")
 
-    local has_license; has_license=$(check_file_exists "$repo_path" "LICENSE")
-    local has_readme; has_readme=$(check_file_exists "$repo_path" "README.md")
-    local has_contributing; has_contributing=$(check_file_exists "$repo_path" "CONTRIBUTING.md")
+    # Check for files using git clone
+    local file_statuses; file_statuses=$(check_files_via_git_clone "$repo_http_url")
+    read -r has_license has_readme has_contributing <<< "$file_statuses"
     
+    # Prepare subject
     local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
     local subject_template="${!subject_template_var}"
-    local subject="${subject_template//\$REPONAME/$repo_name}" # Safer substitution
+    local subject="${subject_template//\$REPONAME/$repo_name}"
     
     if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing"; then
-        add_to_tracking "$repo_id"
+        if [[ "$DRY_RUN" == "false" ]]; then
+            add_to_tracking "$repo_id"
+        fi
         return 0 # Success
     else
         return 1 # Failure

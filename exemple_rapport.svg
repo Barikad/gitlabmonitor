@@ -1,72 +1,38 @@
-<svg width="750" height="580" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <style>
-      .container { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
-      .header { font-size: 16px; fill: #333; }
-      .strong { font-weight: bold; }
-      .table { font-size: 13px; }
-      .table .label { font-weight: bold; }
-      .table .check-ok { fill: #27ae60; font-family: 'Arial'; }
-      .table .check-ko { fill: #c0392b; font-family: 'Arial'; }
-      .warning-header { font-size: 15px; font-weight: bold; fill: #c0392b; }
-      .warning-text { font-size: 12px; fill: #333; }
-      .list-item { font-size: 12px; fill: #333; }
-    </style>
-  </defs>
+<svg width="800" height="450" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <style>
+    .title { font-size: 20px; font-weight: bold; fill: #2c3e50; }
+    .header { font-size: 14px; font-weight: bold; fill: #34495e; }
+    .text { font-size: 14px; fill: #34495e; }
+    .repo-name { font-size: 16px; font-weight: bold; fill: #2980b9; }
+    .check { fill: #27ae60; }
+    .cross { fill: #c0392b; }
+    .warning-title { font-size: 16px; font-weight: bold; fill: #d35400; }
+  </style>
+  <rect width="100%" height="100%" fill="#f8f9fa"/>
+  
+  <text x="20" y="40" class="title">📧 Notification de Nouveau Dépôt Public</text>
+  
+  <rect x="20" y="70" width="760" height="120" rx="5" ry="5" fill="#ffffff" stroke="#dee2e6"/>
+  <text x="40" y="95" class="header">Nom du dépôt:</text>
+  <text x="250" y="95" class="repo-name">ExempleDeProjet</text>
+  
+  <text x="40" y="120" class="header">Dernier commit par:</text>
+  <text x="250" y="120" class="text">J. COQBLIN</text>
+  
+  <text x="40" y="145" class="header">URL:</text>
+  <text x="250" y="145" class="text" fill="#3498db">https://gitlab.exemple.com/groupe/projet</text>
+  
+  <text x="40" y="170" class="header">Vérifications:</text>
+  <text x="250" y="170" class="check">✅ Licence</text>
+  <text x="350" y="170" class="check">✅ README.md</text>
+  <text x="480" y="170" class="cross">❌ CONTRIBUTING.md</text>
 
-  <rect x="1" y="1" width="748" height="578" fill="#ffffff" stroke="#e9ecef" stroke-width="2" rx="8" />
-
-  <g class="container">
-    <!-- Header -->
-    <text x="25" y="40" class="header">Bonjour,</text>
-    <text x="25" y="65" class="header">Un nouveau dépôt GitLab accessible publiquement a été détecté : <tspan class="strong">$REPONAME</tspan>.</text>
-    <text x="25" y="90" class="header">Ceci est la première et unique notification pour ce dépôt.</text>
-
-    <!-- Table -->
-    <g class="table">
-      <rect x="25" y="120" width="700" height="35" fill="#f7f7f7" />
-      <rect x="25" y="120" width="700" height="155" fill="none" stroke="#ddd" />
-      <line x1="25" y1="155" x2="725" y2="155" stroke="#ddd" />
-      <line x1="25" y1="190" x2="725" y2="190" stroke="#ddd" />
-      <line x1="25" y1="225" x2="725" y2="225" stroke="#ddd" />
-      <line x1="25" y1="260" x2="725" y2="260" stroke="#ddd" />
-      <line x1="200" y1="120" x2="200" y2="275" stroke="#ddd" />
-
-      <text x="40" y="143" class="label">Attribut</text>
-      <text x="215" y="143" class="label">Valeur</text>
-      
-      <text x="40" y="178" class="label">Nom du dépôt</text>
-      <text x="215" y="178" class="value strong">corporate-website-v2</text>
-      
-      <text x="40" y="213" class="label">Dernier commit par</text>
-      <text x="215" y="213" class="value">Jeanne Dupont</text>
-      
-      <text x="40" y="248" class="label">URL</text>
-      <text x="215" y="248" class="value">https://gitlab.example.com/marketing/corporate-website-v2</text>
-      
-      <text x="40" y="280" class="label">Fichier LICENSE</text>
-      <text x="215" y="280" class="check-ok">✅</text>
-      
-      <text x="40" y="305" class="label">Fichier README.md</text>
-      <text x="215" y="305" class="check-ok">✅</text>
-      
-      <text x="40" y="330" class="label">Fichier CONTRIBUTING.md</text>
-      <text x="215" y="330" class="check-ko">❌</text>
-    </g>
-    
-    <line x1="25" y1="360" x2="725" y2="360" stroke="#eee" stroke-width="1.5" />
-
-    <!-- Warning Section -->
-    <g>
-      <text x="25" y="390" class="warning-header">⚠️ Rappel des règles de publication</text>
-      <text x="40" y="420" class="list-item"><tspan font-weight="bold">1. Aucune information sensible :</tspan> Pas de secrets, d'identifiants, d'IP internes, etc.</text>
-      <text x="55" y="438" class="list-item">Utilisez des outils comme FindSecretLeak pour vérifier.</text>
-      
-      <text x="40" y="463" class="list-item"><tspan font-weight="bold">2. Code générique :</tspan> Le code doit être réutilisable et non spécifique à un environnement.</text>
-      
-      <text x="40" y="488" class="list-item"><tspan font-weight="bold">3. Licence AGPLv3 :</tspan> Tout dépôt public doit être sous cette licence.</text>
-      
-      <text x="40" y="513" class="list-item"><tspan font-weight="bold">4. Fichiers `CONTRIBUTING.md` et `README.md` :</tspan> Doivent être présents et de qualité.</text>
-    </g>
-  </g>
+  <rect x="20" y="210" width="760" height="220" rx="5" ry="5" fill="#fff8f2" stroke="#ffd8b2"/>
+  <text x="40" y="240" class="warning-title">⚠️ Avertissement Important</text>
+  <text x="40" y="270" class="text">• Aucune information sensible (secrets, IPs, etc.).</text>
+  <text x="40" y="295" class="text">• Le code doit être générique et réutilisable.</text>
+  <text x="40" y="320" class="text">• La licence AGPLv3 est obligatoire.</text>
+  <text x="40" y="345" class="text">• Les fichiers README.md et CONTRIBUTING.md sont requis.</text>
+  <text x="40" y="370" class="text">• Le non-respect peut entraîner la suppression du dépôt.</text>
+  
 </svg>
