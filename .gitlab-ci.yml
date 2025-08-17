@@ -75,8 +75,7 @@ create_release:
         DESCRIPTION_CONTENT="Release for version ${VERSION}."
       else
         # Escape JSON special characters
-        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's///g' -e 's/	/\\t/g' -e 's/
-/\\n/g' < "${CI_PROJECT_DIR}/${RELEASE_NOTES_FILE}")
+        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/\\t/g' -e 's/\n/\\n/g' < "${CI_PROJECT_DIR}/${RELEASE_NOTES_FILE}")
       fi
 
     # 3. Create the JSON payload for the Release API
