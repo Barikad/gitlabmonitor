@@ -44,7 +44,11 @@ La méthode recommandée est de cloner le dépôt :
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
 ```
-Alternativement, vous pouvez télécharger la dernière version stable depuis la [page des Releases](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
+Alternativement, vous pouvez télécharger la dernière version directement depuis le registre de paquets :
+
+[![Download Latest](https://img.shields.io/badge/Télécharger-Dernière%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/packages)
+
+L'historique complet des versions est aussi disponible sur la [page des Releases](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
 
 Une fois les fichiers obtenus, rendez le script exécutable :
 ```bash
@@ -145,7 +149,11 @@ The recommended method is to clone the repository:
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
 ```
-Alternatively, you can download the latest stable version from the [Releases page](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
+Alternatively, you can download the latest version directly from the package registry:
+
+[![Download Latest](https://img.shields.io/badge/Download-Latest%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/packages)
+
+The full release history is also available on the [Releases page](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
 
 Once you have the files, make the script executable:
 ```bash
