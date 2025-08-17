@@ -32,9 +32,13 @@ task_release() {
 
     # 1. Upload packages
     echo "📦 Uploading packages to Generic Package Registry..."
+    # Upload the versioned package
     curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}"          --upload-file "${PACKAGE_PATH}"          "${GENERIC_PACKAGE_URL}/${VERSION}/${PACKAGE_NAME}"
-
+    # Upload the versioned package to the 'latest' channel
     curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}"          --upload-file "${PACKAGE_PATH}"          "${GENERIC_PACKAGE_URL}/latest/${PACKAGE_NAME}"
+    # Create a generically named copy and upload it to the 'latest' channel for a stable URL
+    cp "${PACKAGE_PATH}" "${CI_PROJECT_DIR}/gitlab-monitor-latest.tar.gz"
+    curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}"          --upload-file "${CI_PROJECT_DIR}/gitlab-monitor-latest.tar.gz"          "${GENERIC_PACKAGE_URL}/latest/gitlab-monitor-latest.tar.gz"
 
     # 2. Prepare Release Notes
     echo "📝 Preparing release notes..."
