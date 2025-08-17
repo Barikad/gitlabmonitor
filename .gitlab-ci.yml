@@ -1,8 +1,7 @@
 # ==============================================================================
 # GitLab CI/CD Pipeline for GitLabMonitor
+# Utilise la méthode "Release Assets" pour une URL de téléchargement stable.
 # ==============================================================================
-# This pipeline calls an external script to perform all actions.
-
 stages:
   - build
   - release
@@ -12,28 +11,44 @@ stages:
 # ==============================================================================
 build_package:
   stage: build
-  # The script is run using bash
-  script:
-    - /bin/bash ci/release.sh build
+  image: alpine:latest
   rules:
     - if: $CI_COMMIT_TAG
+  script:
+    - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
+    - tar -czvf "${PACKAGE_NAME}" \
+        gitlab-public-repo-monitor.sh \
+        config.conf.example \
+        README.md \
+        LICENSE \
+        template.fr.md \
+        template.en.md
+    - echo "Package ${PACKAGE_NAME} created successfully."
   artifacts:
-    # The artifact path is now predictable
     paths:
-      - "gitlab-monitor-*.tar.gz"
-    expire_in: 30 days
+      - "*.tar.gz"
+    expire_in: 1 hour
 
 # ==============================================================================
-# JOB 2: Publish the package and create the GitLab Release
+# JOB 2: Create the GitLab Release with the package as an asset
 # ==============================================================================
 create_release:
   stage: release
-  # The script needs curl, so we use an image that has it.
-  image: curlimages/curl:latest
-  script:
-    - /bin/bash ci/release.sh release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
   rules:
     - if: $CI_COMMIT_TAG
   needs:
     - job: build_package
       artifacts: true
+  script:
+    - echo "Creating GitLab Release ${CI_COMMIT_TAG}..."
+    - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
+    - RELEASE_NOTES_FILE="release_notes_${CI_COMMIT_TAG}.md"
+    # release-cli utilise les variables CI prédéfinies pour s'authentifier.
+    # La commande "create" crée la release.
+    # L'option "--assets-link" attache un fichier en tant qu'asset.
+    # Nous utilisons le type "package" pour indiquer que c'est un paquet de distribution.
+    - |
+      release-cli create --name "Release ${CI_COMMIT_TAG}" --tag-name "${CI_COMMIT_TAG}" \
+        --description "Version ${CI_COMMIT_TAG}. Les notes de version complètes sont dans le fichier CHANGELOG.md." \
+        --assets-link "{\"name\":\"${PACKAGE_NAME}\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/${PACKAGE_NAME}?job=build_package\",\"link_type\":\"package\"}"
