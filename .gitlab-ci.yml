@@ -1,0 +1,94 @@
+# ==============================================================================
+# GitLab CI/CD Pipeline for GitLabMonitor
+# ==============================================================================
+# This pipeline automates the creation of release packages and GitLab Releases
+# whenever a new tag is pushed to the repository.
+
+stages:
+  - build
+  - release
+
+# ============================================================================== 
+# JOB 1: Build the release package
+# ============================================================================== 
+build_package:
+  stage: build
+  image: alpine:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - echo "Building package for version $CI_COMMIT_TAG..."
+    - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
+    - tar -czvf "${PACKAGE_NAME}" \
+        gitlab-public-repo-monitor.sh 
+        config.conf.example 
+        README.md 
+        LICENSE 
+        template.fr.md 
+        template.en.md
+    - echo "Package ${PACKAGE_NAME} created successfully."
+  artifacts:
+    paths:
+      - gitlab-monitor-*.tar.gz
+    expire_in: 30 days
+
+# ============================================================================== 
+# JOB 2: Publish the package and create the GitLab Release
+# ============================================================================== 
+create_release:
+  stage: release
+  image: curlimages/curl:latest
+  rules:
+    - if: $CI_COMMIT_TAG
+  needs:
+    - job: build_package
+      artifacts: true
+  script:
+    - VERSION=$CI_COMMIT_TAG
+    - PACKAGE_NAME="gitlab-monitor-${VERSION}.tar.gz"
+    - GENERIC_PACKAGE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/gitlab-monitor"
+    - RELEASE_NOTES_FILE="release_notes_${VERSION}.md"
+
+    # 1. Upload packages to the Generic Package Registry
+    - echo "Uploading packages..."
+    - |
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/${VERSION}/${PACKAGE_NAME}"
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/latest/${PACKAGE_NAME}"
+
+    # 2. Prepare the Release Notes description
+    - |
+      if [ ! -f "${RELEASE_NOTES_FILE}" ]; then
+        echo "Warning: ${RELEASE_NOTES_FILE} not found. Using a generic description."
+        DESCRIPTION_CONTENT="Release for version ${VERSION}."
+      else
+        # Escape JSON special characters
+        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/\\t/g' -e 's/\n/\\n/g' < "${RELEASE_NOTES_FILE}")
+      fi
+
+    # 3. Create the JSON payload for the Release API
+    - echo "Preparing JSON payload..."
+    - |
+      cat << EOF > payload.json
+      {
+        "name": "Release ${VERSION}",
+        "tag_name": "${VERSION}",
+        "description": "${DESCRIPTION_CONTENT}",
+        "assets": {
+          "links": [{
+            "name": "Package (${PACKAGE_NAME})",
+            "url": "${CI_PROJECT_URL}/-/packages/generic/gitlab-monitor/${VERSION}/${PACKAGE_NAME}"
+          }]
+        }
+      }
+      EOF
+
+    # 4. Create the GitLab Release
+    - echo "Creating GitLab Release..."
+    - |
+      curl --request POST \
+           --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
+           --header "Content-Type: application/json" \
+           --data "@payload.json" \
+           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
+
+    - echo "Release created successfully."
