@@ -16,7 +16,7 @@ build_package:
     - if: $CI_COMMIT_TAG
   script:
     - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
-    - tar -czvf "${PACKAGE_NAME}" \
+    - tar -C "${CI_PROJECT_DIR}" -czvf "${PACKAGE_NAME}" \
         gitlab-public-repo-monitor.sh \
         config.conf.example \
         README.md \
