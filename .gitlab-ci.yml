@@ -1,6 +1,8 @@
 # ==============================================================================
 # GitLab CI/CD Pipeline for GitLabMonitor
 # ==============================================================================
+# This pipeline calls an external script to perform all actions.
+
 stages:
   - build
   - release
@@ -10,23 +12,15 @@ stages:
 # ==============================================================================
 build_package:
   stage: build
-  image: alpine:latest
+  # The script is run using bash
+  script:
+    - /bin/bash ci/release.sh build
   rules:
     - if: $CI_COMMIT_TAG
-  script:
-    - echo "--- Debugging file structure ---"
-    - echo "Current directory: $(pwd)"
-    - ls -la
-    - echo "CI_PROJECT_DIR is: ${CI_PROJECT_DIR}"
-    - ls -la "${CI_PROJECT_DIR}"
-    - echo "--- End of debugging ---"
-    - echo "Building package for version ${CI_COMMIT_TAG}..."
-    - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
-    - tar -C "${CI_PROJECT_DIR}" -czvf "${CI_PROJECT_DIR}/${PACKAGE_NAME}" gitlab-public-repo-monitor.sh config.conf.example README.md LICENSE template.fr.md template.en.md
-    - echo "Package created successfully."
   artifacts:
+    # The artifact path is now predictable
     paths:
-      - "*/gitlab-monitor-*.tar.gz"
+      - "gitlab-monitor-*.tar.gz"
     expire_in: 30 days
 
 # ==============================================================================
@@ -34,38 +28,12 @@ build_package:
 # ==============================================================================
 create_release:
   stage: release
+  # The script needs curl, so we use an image that has it.
   image: curlimages/curl:latest
+  script:
+    - /bin/bash ci/release.sh release
   rules:
     - if: $CI_COMMIT_TAG
   needs:
     - job: build_package
       artifacts: true
-  script:
-    - VERSION=$CI_COMMIT_TAG
-    - PACKAGE_NAME="gitlab-monitor-${VERSION}.tar.gz"
-    - GENERIC_PACKAGE_URL="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/gitlab-monitor"
-    - RELEASE_NOTES_FILE="release_notes_${VERSION}.md"
-    - echo "Uploading packages..."
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${CI_PROJECT_DIR}/${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/${VERSION}/${PACKAGE_NAME}"
-    - curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${CI_PROJECT_DIR}/${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/latest/${PACKAGE_NAME}"
-    - echo "Preparing Release Notes..."
-    - |
-      if [ ! -f "${CI_PROJECT_DIR}/${RELEASE_NOTES_FILE}" ]; then
-        DESCRIPTION_CONTENT="Release for version ${VERSION}."
-      else
-        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's///g' -e 's/	/\\t/g' -e 's/
-/\\n/g' < "${CI_PROJECT_DIR}/${RELEASE_NOTES_FILE}")
-      fi
-    - echo "Preparing JSON payload..."
-    - |
-      cat << EOF > payload.json
-      {
-        "name": "Release ${VERSION}",
-        "tag_name": "${VERSION}",
-        "description": "${DESCRIPTION_CONTENT}",
-        "assets": { "links": [{ "name": "Package (${PACKAGE_NAME})", "url": "${CI_PROJECT_URL}/-/packages/generic/gitlab-monitor/${VERSION}/${PACKAGE_NAME}" }] }
-      }
-      EOF
-    - echo "Creating GitLab Release..."
-    - curl --request POST --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --header "Content-Type: application/json" --data "@payload.json" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
-    - echo "Release created successfully."
