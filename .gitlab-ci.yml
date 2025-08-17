@@ -8,9 +8,9 @@ stages:
   - build
   - release
 
-# ============================================================================== 
+# ==============================================================================
 # JOB 1: Build the release package
-# ============================================================================== 
+# ==============================================================================
 build_package:
   stage: build
   image: alpine:latest
@@ -19,22 +19,25 @@ build_package:
   script:
     - echo "Building package for version $CI_COMMIT_TAG..."
     - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
-    - tar -czvf "${PACKAGE_NAME}" \
-        gitlab-public-repo-monitor.sh 
-        config.conf.example 
-        README.md 
-        LICENSE 
-        template.fr.md 
+    # The -C flag tells tar to change directory to CI_PROJECT_DIR before creating the archive.
+    # This ensures it finds the files regardless of the runner's working directory.
+    - tar -C "$CI_PROJECT_DIR" -czvf "$CI_PROJECT_DIR/${PACKAGE_NAME}" \
+        gitlab-public-repo-monitor.sh \
+        config.conf.example \
+        README.md \
+        LICENSE \
+        template.fr.md \
         template.en.md
     - echo "Package ${PACKAGE_NAME} created successfully."
   artifacts:
     paths:
-      - gitlab-monitor-*.tar.gz
+      # We need to specify the full path for the artifact as well.
+      - "*/gitlab-monitor-*.tar.gz"
     expire_in: 30 days
 
-# ============================================================================== 
+# ==============================================================================
 # JOB 2: Publish the package and create the GitLab Release
-# ============================================================================== 
+# ==============================================================================
 create_release:
   stage: release
   image: curlimages/curl:latest
@@ -52,17 +55,17 @@ create_release:
     # 1. Upload packages to the Generic Package Registry
     - echo "Uploading packages..."
     - |
-      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/${VERSION}/${PACKAGE_NAME}"
-      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/latest/${PACKAGE_NAME}"
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${CI_PROJECT_DIR}/${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/${VERSION}/${PACKAGE_NAME}"
+      curl --header "JOB-TOKEN: ${CI_JOB_TOKEN}" --upload-file "${CI_PROJECT_DIR}/${PACKAGE_NAME}" "${GENERIC_PACKAGE_URL}/latest/${PACKAGE_NAME}"
 
     # 2. Prepare the Release Notes description
     - |
-      if [ ! -f "${RELEASE_NOTES_FILE}" ]; then
+      if [ ! -f "${CI_PROJECT_DIR}/${RELEASE_NOTES_FILE}" ]; then
         echo "Warning: ${RELEASE_NOTES_FILE} not found. Using a generic description."
         DESCRIPTION_CONTENT="Release for version ${VERSION}."
       else
         # Escape JSON special characters
-        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/\\t/g' -e 's/\n/\\n/g' < "${RELEASE_NOTES_FILE}")
+        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/\\t/g' -e 's/\n/\\n/g' < "${CI_PROJECT_DIR}/${RELEASE_NOTES_FILE}")
       fi
 
     # 3. Create the JSON payload for the Release API
