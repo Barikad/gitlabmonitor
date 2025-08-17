@@ -113,7 +113,7 @@ create_release:
       curl --request POST \
            --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
            --header "Content-Type: application/json" \
-           --data '{ "name": "Release '${VERSION}'", "tag_name": "'${VERSION}'", "description": "'"${DESCRIPTION}"'", "assets": { "links": [{ "name": "Package ('${PACKAGE_NAME}')", "url": "'"${CI_PROJECT_URL}/-/packages/generic/gitlab-monitor/${VERSION}/${PACKAGE_NAME}'"" }] } }' \
+           --data '{ "name": "Release '${VERSION}'", "tag_name": "'${VERSION}'", "description": "'"${DESCRIPTION}"'"", "assets": { "links": [{ "name": "Package ('${PACKAGE_NAME}')", "url": "'"${CI_PROJECT_URL}/-/packages/generic/gitlab-monitor/${VERSION}/${PACKAGE_NAME}"'"" }] } }' \
            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
 
     - echo "Release created successfully."
