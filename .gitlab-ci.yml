@@ -8,9 +8,9 @@ stages:
   - build
   - release
 
-# ==============================================================================
+# ============================================================================== 
 # JOB 1: Build the release package
-# ==============================================================================
+# ============================================================================== 
 build_package:
   stage: build
   image: alpine:latest
@@ -20,11 +20,11 @@ build_package:
     - echo "Building package for version $CI_COMMIT_TAG..."
     - PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
     - tar -czvf "${PACKAGE_NAME}" \
-        gitlab-public-repo-monitor.sh \
-        config.conf.example \
-        README.md \
-        LICENSE \
-        template.fr.md \
+        gitlab-public-repo-monitor.sh 
+        config.conf.example 
+        README.md 
+        LICENSE 
+        template.fr.md 
         template.en.md
     - echo "Package ${PACKAGE_NAME} created successfully."
   artifacts:
@@ -32,9 +32,9 @@ build_package:
       - gitlab-monitor-*.tar.gz
     expire_in: 30 days
 
-# ==============================================================================
+# ============================================================================== 
 # JOB 2: Publish the package and create the GitLab Release
-# ==============================================================================
+# ============================================================================== 
 create_release:
   stage: release
   image: curlimages/curl:latest
@@ -62,8 +62,7 @@ create_release:
         DESCRIPTION_CONTENT="Release for version ${VERSION}."
       else
         # Escape JSON special characters
-        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's///g' -e 's/	/\t/g' -e 's/
-/\n/g' < "${RELEASE_NOTES_FILE}")
+        DESCRIPTION_CONTENT=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\r//g' -e 's/\t/\\t/g' -e 's/\n/\\n/g' < "${RELEASE_NOTES_FILE}")
       fi
 
     # 3. Create the JSON payload for the Release API
