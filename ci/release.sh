@@ -52,7 +52,12 @@ task_release() {
         DESCRIPTION_CONTENT=${DESCRIPTION_CONTENT:1:-1}
     fi
 
-    # 3. Create JSON payload
+    # 4. Get the permanent download URL from the API
+    echo "🔗 Fetching permanent download URL..."
+    PACKAGE_ID=$(curl --fail --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?package_name=gitlab-monitor-latest.tar.gz" | jq '.[0].id')
+    DOWNLOAD_URL="${CI_PROJECT_URL}/-/package_files/${PACKAGE_ID}/download"
+
+    # 5. Create JSON payload
     echo "📄 Preparing JSON payload..."
     cat << EOF > payload.json
 {
@@ -62,13 +67,13 @@ task_release() {
   "assets": {
     "links": [{
       "name": "Package (${PACKAGE_NAME})",
-      "url": "${CI_PROJECT_URL}/-/packages/generic/gitlab-monitor/${VERSION}/${PACKAGE_NAME}"
+      "url": "${DOWNLOAD_URL}"
     }]
   }
 }
 EOF
 
-    # 4. Create GitLab Release
+    # 6. Create GitLab Release
     echo "🚀 Creating GitLab Release..."
     curl --fail --request POST          --header "JOB-TOKEN: ${CI_JOB_TOKEN}"          --header "Content-Type: application/json"          --data "@payload.json"          "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
 
