@@ -46,6 +46,6 @@ create_release:
       glab release create "${CI_COMMIT_TAG}" \
         --name "Release ${CI_COMMIT_TAG}" \
         --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." \
-        --asset "${VERSIONED_ASSET}" \
-        --asset "${LATEST_ASSET}"
+        "${VERSIONED_ASSET}" \
+        "${LATEST_ASSET}"
       echo "Release created successfully."
