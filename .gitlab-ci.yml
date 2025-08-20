@@ -15,7 +15,8 @@ build_package:
     - LATEST_PACKAGE_NAME="gitlab-monitor-latest.tar.gz"
     - echo "Archiving project files"
     - |
-      tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf \
+      tar -C "${CI_PROJECT_DIR}" --exclude=.git \
+        --exclude="${VERSIONED_PACKAGE_NAME}" -czvf \
         "${VERSIONED_PACKAGE_NAME}" .
     - echo "Package created successfully"
     - cp "${VERSIONED_PACKAGE_NAME}" "${LATEST_PACKAGE_NAME}"
