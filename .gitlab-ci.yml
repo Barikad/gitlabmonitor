@@ -58,7 +58,7 @@ create_release:
       )
     - echo "Release data prepared"
     - |
-      curl --request POST \
+      curl --fail --request POST \
         --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
         --header "Content-Type: application/json" \
         --data "${RELEASE_DATA}" \
