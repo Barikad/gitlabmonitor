@@ -71,7 +71,8 @@ create_release:
 
     # Envoi de la release
     - echo "Sending release request..."
-    - curl --fail --request POST \
+    - |
+      curl --fail --request POST \
         --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
         --header "Content-Type: application/json" \
         --data @release.json \
