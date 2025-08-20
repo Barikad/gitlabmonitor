@@ -1,27 +1,3 @@
----
-stages:
-  - build
-  - release
-
-build_package:
-  stage: build
-  rules:
-    - if: '$CI_COMMIT_TAG'
-  script:
-    - echo "Debugging file structure"
-    - ls -la "${CI_PROJECT_DIR}"
-    - VERSIONED_PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
-    - LATEST_PACKAGE_NAME="gitlab-monitor-latest.tar.gz"
-    - echo "Archiving project files"
-    - tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf "${VERSIONED_PACKAGE_NAME}" .
-    - echo "Package ${VERSIONED_PACKAGE_NAME} created successfully"
-    - cp "${VERSIONED_PACKAGE_NAME}" "${LATEST_PACKAGE_NAME}"
-    - echo "Created stable package ${LATEST_PACKAGE_NAME}"
-  artifacts:
-    paths:
-      - "*.tar.gz"
-    expire_in: 1 hour
-
 create_release:
   stage: release
   rules:
@@ -38,9 +14,5 @@ create_release:
     - echo "--- Creating release ---"
     - VERSIONED_ASSET="${CI_PROJECT_DIR}/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
     - LATEST_ASSET="${CI_PROJECT_DIR}/gitlab-monitor-latest.tar.gz"
-    - glab release create "${CI_COMMIT_TAG}" \
-        --name "Release ${CI_COMMIT_TAG}" \
-        --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." \
-        --asset "${VERSIONED_ASSET}" \
-        --asset "${LATEST_ASSET}"
+    - glab release create "${CI_COMMIT_TAG}" --name "Release ${CI_COMMIT_TAG}" --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." --asset "${VERSIONED_ASSET}" --asset "${LATEST_ASSET}"
     - echo "Release created successfully."
