@@ -59,7 +59,7 @@ create_release:
     - echo "Release data prepared"
     - |
       curl --request POST \
-        --header "PRIVATE-TOKEN: ${CI_JOB_TOKEN}" \
+        --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
         --header "Content-Type: application/json" \
         --data "${RELEASE_DATA}" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/releases"
