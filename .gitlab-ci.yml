@@ -1,12 +1,27 @@
 stages:
+  - lint
   - build
   - release
+
+lint_ci:
+  stage: lint
+  rules:
+    - when: always
+  script:
+    - echo "Running GitLab CI Lint..."
+    - |
+      curl --fail --request POST \
+        --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
+        --header "Content-Type: application/json" \
+        --data "{\"content\": \"$(sed 's/\"/\\"/g' .gitlab-ci.yml | tr -d '\n')\"}" \
+        "${CI_API_V4_URL}/ci/lint"
 
 build_package:
   stage: build
   image: alpine:latest
   rules:
     - if: '$CI_COMMIT_TAG'
+  needs: [ "lint_ci" ]
   script:
     - echo "Debugging file structure"
     - echo "CI_PROJECT_DIR is ${CI_PROJECT_DIR}"
@@ -29,20 +44,17 @@ create_release:
   rules:
     - if: '$CI_COMMIT_TAG'
   needs:
+    - job: lint_ci
     - job: build_package
       artifacts: true
   script:
     - echo "Creating GitLab Release ${CI_COMMIT_TAG}"
-
-    # Vérifier que le token est injecté (bash requis ; OK avec Shell executor)
     - echo "Token length: ${#RELEASE_ACCESS_TOKEN}"
     - echo "Token starts with: ${RELEASE_ACCESS_TOKEN:0:4}***"
-
-    # Tester un accès GET simple au projet (sans backslash superflu)
+    - echo "Testing API access..."
     - curl -v --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
-
-    # Préparer le JSON pour la release (bloc unique avec here-doc)
     - |
+      echo "Preparing JSON..."
       RELEASE_DATA=$(cat <<EOF
       {
         "name": "Release ${CI_COMMIT_TAG}",
@@ -66,8 +78,6 @@ create_release:
       EOF
       )
       echo "${RELEASE_DATA}" > release.json
-
-    # Envoi de la release (bloc unique, pas de commentaire inline après un backslash)
     - |
       echo "Sending release request..."
       curl --fail --request POST \
