@@ -57,6 +57,9 @@ create_release:
       EOF
       )
     - echo "Release data prepared"
+    - echo "--- BEGIN RELEASE DATA ---"
+    - echo "${RELEASE_DATA}"
+    - echo "--- END RELEASE DATA ---"
     - |
       curl --fail --request POST \
         --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
