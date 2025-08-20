@@ -25,12 +25,16 @@ build_package:
 
 create_release:
   stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli:latest
   rules:
     - if: '$CI_COMMIT_TAG'
   needs:
     - job: build_package
       artifacts: true
+  before_script:
+    - >
+      wget -O /usr/local/bin/release-cli
+      https://release-cli-downloads.s3.amazonaws.com/latest/release-cli-linux-amd64
+    - chmod +x /usr/local/bin/release-cli
   script:
     - |
       echo "--- Debugging Release Creation ---"
