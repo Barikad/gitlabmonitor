@@ -53,8 +53,6 @@ create_release:
     - echo "Token starts with: ${RELEASE_ACCESS_TOKEN:0:4}***"
     - echo "Testing API access..."
     - curl -v --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
-
-    # Préparer le JSON pour la release (heredoc unique)
     - |
       echo "Preparing JSON..."
       RELEASE_DATA=$(cat <<EOF
@@ -78,9 +76,8 @@ create_release:
   }
 }
 EOF
-      )
-    - echo "${RELEASE_DATA}" > release.json
-
+)
+      echo "${RELEASE_DATA}" > release.json
     - |
       echo "Sending release request..."
       curl --fail --request POST \
