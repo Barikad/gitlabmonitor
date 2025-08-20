@@ -45,7 +45,7 @@ create_release:
       LATEST_URL="${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-latest.tar.gz?job=build_package"
       ASSETS_JSON="[{"name":"gitlab-monitor-${CI_COMMIT_TAG}.tar.gz","url":"${VERSIONED_URL}","link_type":"package"},{"name":"gitlab-monitor-latest.tar.gz","url":"${LATEST_URL}","link_type":"other"}]"
       glab release create "${CI_COMMIT_TAG}" \
-        --name "Release ${CI_COMMIT_TAG}" 
-        --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md."
+        --name "Release ${CI_COMMIT_TAG}" \
+        --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." \
         --assets-links "${ASSETS_JSON}"
       echo "Release created successfully."
