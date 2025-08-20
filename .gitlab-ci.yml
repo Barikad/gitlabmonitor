@@ -1,7 +1,14 @@
+---
 stages:
   - lint
   - build
   - release
+
+.asset_urls: &asset_urls
+  VERSIONED_URL: >-
+    ${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz?job=build_package
+  LATEST_URL: >-
+    ${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-latest.tar.gz?job=build_package
 
 lint_ci:
   stage: lint
@@ -10,10 +17,11 @@ lint_ci:
   script:
     - echo "Running GitLab CI Lint..."
     - |
+      CI_CONTENT=$(sed 's/"/\"/g' .gitlab-ci.yml | tr -d '\n')
       curl --fail --request POST \
         --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
         --header "Content-Type: application/json" \
-        --data "{\"content\": \"$(sed 's/\"/\\"/g' .gitlab-ci.yml | tr -d '\n')\"}" \
+        --data "{\"content\": \"${CI_CONTENT}\"}" \
         "${CI_API_V4_URL}/ci/lint"
 
 build_package:
@@ -21,17 +29,17 @@ build_package:
   image: alpine:latest
   rules:
     - if: '$CI_COMMIT_TAG'
-  needs: [ "lint_ci" ]
+  needs: ["lint_ci"]
   script:
     - echo "Debugging file structure"
-    - echo "CI_PROJECT_DIR is ${CI_PROJECT_DIR}"
     - ls -la "${CI_PROJECT_DIR}"
     - VERSIONED_PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
     - LATEST_PACKAGE_NAME="gitlab-monitor-latest.tar.gz"
     - echo "Archiving project files"
-    - tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf "${VERSIONED_PACKAGE_NAME}" .
+    - |
+      tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf \
+        "${VERSIONED_PACKAGE_NAME}" .
     - echo "Package ${VERSIONED_PACKAGE_NAME} created successfully"
-    - echo "Creating a stable latest copy"
     - cp "${VERSIONED_PACKAGE_NAME}" "${LATEST_PACKAGE_NAME}"
     - echo "Created stable package ${LATEST_PACKAGE_NAME}"
   artifacts:
@@ -47,36 +55,40 @@ create_release:
     - job: lint_ci
     - job: build_package
       artifacts: true
+  variables:
+    <<: *asset_urls
   script:
     - echo "Creating GitLab Release ${CI_COMMIT_TAG}"
     - echo "Token length: ${#RELEASE_ACCESS_TOKEN}"
     - echo "Token starts with: ${RELEASE_ACCESS_TOKEN:0:4}***"
     - echo "Testing API access..."
-    - curl -v --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
+    - |
+      curl -v --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
     - |
       echo "Preparing JSON..."
       RELEASE_DATA=$(cat <<EOF
-{
-  "name": "Release ${CI_COMMIT_TAG}",
-  "tag_name": "${CI_COMMIT_TAG}",
-  "description": "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md.",
-  "assets": {
-    "links": [
       {
-        "name": "gitlab-monitor-${CI_COMMIT_TAG}.tar.gz",
-        "url": "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz?job=build_package",
-        "link_type": "package"
-      },
-      {
-        "name": "gitlab-monitor-latest.tar.gz",
-        "url": "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-latest.tar.gz?job=build_package",
-        "link_type": "other"
+        "name": "Release ${CI_COMMIT_TAG}",
+        "tag_name": "${CI_COMMIT_TAG}",
+        "description": "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md.",
+        "assets": {
+          "links": [
+            {
+              "name": "gitlab-monitor-${CI_COMMIT_TAG}.tar.gz",
+              "url": "${VERSIONED_URL}",
+              "link_type": "package"
+            },
+            {
+              "name": "gitlab-monitor-latest.tar.gz",
+              "url": "${LATEST_URL}",
+              "link_type": "other"
+            }
+          ]
+        }
       }
-    ]
-  }
-}
-EOF
-)
+      EOF
+      )
       echo "${RELEASE_DATA}" > release.json
     - |
       echo "Sending release request..."
