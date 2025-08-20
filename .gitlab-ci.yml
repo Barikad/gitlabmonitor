@@ -40,7 +40,8 @@ create_release:
 
     # Tester un accès GET simple au projet
     - echo "Testing API access..."
-    - curl -v --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
+    - |
+      curl -v --header "PRIVATE-TOKEN: ${RELEASE_ACCESS_TOKEN}" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}"
 
     # Préparer le JSON pour la release
