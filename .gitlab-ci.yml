@@ -32,13 +32,13 @@ create_release:
     - job: build_package
       artifacts: true
   script:
-    - echo "--- Debugging Release Creation ---"
-    - echo "CI_COMMIT_TAG: ${CI_COMMIT_TAG}"
-    - echo "CI_PROJECT_ID: ${CI_PROJECT_ID}"
-    - echo "CI_PROJECT_URL: ${CI_PROJECT_URL}"
-    - echo "CI_JOB_TOKEN is present. Length: ${#CI_JOB_TOKEN}"
-    - echo "--- Attempting to create release (verbose mode) ---"
     - |
+      echo "--- Debugging Release Creation ---"
+      echo "CI_COMMIT_TAG: ${CI_COMMIT_TAG}"
+      echo "CI_PROJECT_ID: ${CI_PROJECT_ID}"
+      echo "CI_PROJECT_URL: ${CI_PROJECT_URL}"
+      echo "CI_JOB_TOKEN is present. Length: ${#CI_JOB_TOKEN}"
+      echo "--- Attempting to create release (verbose mode) ---"
       VERSIONED_ASSET="{\"name\":\"gitlab-monitor-${CI_COMMIT_TAG}.tar.gz\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz?job=build_package\",\"link_type\":\"package\"}"
       LATEST_ASSET="{\"name\":\"gitlab-monitor-latest.tar.gz\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-latest.tar.gz?job=build_package\",\"link_type\":\"other\"}"
       release-cli create --name "Release ${CI_COMMIT_TAG}" \
@@ -47,11 +47,10 @@ create_release:
         --assets-link "${VERSIONED_ASSET}" \
         --assets-link "${LATEST_ASSET}" \
         --verbose
-    - RELEASE_EXIT_CODE=$?
-    - echo "Release-cli command finished with exit code: ${RELEASE_EXIT_CODE}"
-    - |
+      RELEASE_EXIT_CODE=$?
+      echo "Release-cli command finished with exit code: ${RELEASE_EXIT_CODE}"
       if [ ${RELEASE_EXIT_CODE} -ne 0 ]; then
         echo "ERROR: Release creation failed!"
         exit 1
       fi
-    - echo "Release created successfully."
+      echo "Release created successfully."
