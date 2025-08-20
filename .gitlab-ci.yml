@@ -1,42 +1,29 @@
-# ==============================================================================
-# GitLab CI/CD Pipeline for GitLabMonitor
-# Utilise la méthode "Release Assets" pour une URL de téléchargement stable.
-# ==============================================================================
-
 stages:
   - build
   - release
 
-# ==============================================================================
-# JOB 1: Build the release package
-# ==============================================================================
 build_package:
   stage: build
   image: alpine:latest
   rules:
     - if: $CI_COMMIT_TAG
   script:
-    - echo "--- Debugging file structure ---"
-    - echo "CI_PROJECT_DIR is: ${CI_PROJECT_DIR}"
-    - echo "Content of CI_PROJECT_DIR:"
+    - echo "Debugging file structure"
+    - echo "CI_PROJECT_DIR is ${CI_PROJECT_DIR}"
     - ls -la "${CI_PROJECT_DIR}"
-    - echo "--- End of debugging ---"
     - VERSIONED_PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
     - LATEST_PACKAGE_NAME="gitlab-monitor-latest.tar.gz"
-    - echo "Archiving project files..."
+    - echo "Archiving project files"
     - tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf "${VERSIONED_PACKAGE_NAME}" .
-    - echo "Package ${VERSIONED_PACKAGE_NAME} created successfully."
-    - echo "Creating a stable 'latest' copy..."
+    - echo "Package ${VERSIONED_PACKAGE_NAME} created successfully"
+    - echo "Creating a stable latest copy"
     - cp "${VERSIONED_PACKAGE_NAME}" "${LATEST_PACKAGE_NAME}"
-    - echo "Created stable package ${LATEST_PACKAGE_NAME}."
+    - echo "Created stable package ${LATEST_PACKAGE_NAME}"
   artifacts:
     paths:
       - "*.tar.gz"
     expire_in: 1 hour
 
-# ==============================================================================
-# JOB 2: Create the GitLab Release with the package as an asset
-# ==============================================================================
 create_release:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
@@ -46,9 +33,11 @@ create_release:
     - job: build_package
       artifacts: true
   script:
-    - echo "Creating GitLab Release ${CI_COMMIT_TAG}..."
+    - echo "Creating GitLab Release ${CI_COMMIT_TAG}"
     - |
-      release-cli create --name "Release ${CI_COMMIT_TAG}" --tag-name "${CI_COMMIT_TAG}" \
-        --description "Version ${CI_COMMIT_TAG}. Les notes de version complètes sont dans le fichier CHANGELOG.md." \
+      release-cli create \
+        --name "Release ${CI_COMMIT_TAG}" \
+        --tag-name "${CI_COMMIT_TAG}" \
+        --description "Version ${CI_COMMIT_TAG}. Les notes de version completes sont dans le fichier CHANGELOG.md." \
         --assets-link "{\"name\":\"gitlab-monitor-${CI_COMMIT_TAG}.tar.gz\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz?job=build_package\",\"link_type\":\"package\"}" \
         --assets-link "{\"name\":\"gitlab-monitor-latest.tar.gz\",\"url\":\"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/gitlab-monitor-latest.tar.gz?job=build_package\",\"link_type\":\"other\"}"
