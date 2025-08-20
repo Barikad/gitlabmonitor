@@ -14,8 +14,7 @@ build_package:
     - LATEST_PACKAGE_NAME="gitlab-monitor-latest.tar.gz"
     - echo "Archiving project files"
     - |
-      tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf 
-        "${VERSIONED_PACKAGE_NAME}" .
+      tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf         "${VERSIONED_PACKAGE_NAME}" .
     - echo "Package created successfully"
     - cp "${VERSIONED_PACKAGE_NAME}" "${LATEST_PACKAGE_NAME}"
   artifacts:
@@ -34,19 +33,18 @@ create_release:
     - job: build_package
       artifacts: true
   script:
-    - echo "--- Debugging Release Creation with glab ---"
-    - echo "CI_COMMIT_TAG: ${CI_COMMIT_TAG}"
-    - echo "CI_PROJECT_ID: ${CI_PROJECT_ID}"
-    - echo "CI_PROJECT_URL: ${CI_PROJECT_URL}"
-    - echo "--- Authenticating with GitLab ---"
-    - glab auth login --hostname "${CI_SERVER_HOST}" --token "${RELEASE_ACCESS_TOKEN}"
-    - echo "--- Creating release ---"
     - |
+      echo "--- Debugging Release Creation with glab ---"
+      echo "CI_COMMIT_TAG: ${CI_COMMIT_TAG}"
+      echo "CI_PROJECT_ID: ${CI_PROJECT_ID}"
+      echo "CI_PROJECT_URL: ${CI_PROJECT_URL}"
+      echo "--- Authenticating with GitLab ---"
+      glab auth login         --hostname "${CI_SERVER_HOST}"         --token "${RELEASE_ACCESS_TOKEN}"
+      echo "--- Creating release ---"
       VERSIONED_ASSET="${CI_PROJECT_DIR}/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
       LATEST_ASSET="${CI_PROJECT_DIR}/gitlab-monitor-latest.tar.gz"
-      glab release create "${CI_COMMIT_TAG}" \
-        --name "Release ${CI_COMMIT_TAG}" \
-        --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." \
-        --asset "${VERSIONED_ASSET}" \
-        --asset "${LATEST_ASSET}"
-    - echo "Release created successfully."
+      glab release create "${CI_COMMIT_TAG}"         --name "Release ${CI_COMMIT_TAG}"         --notes >-
+          Version ${CI_COMMIT_TAG}.
+          Voir CHANGELOG.md.
+        --asset "${VERSIONED_ASSET}"         --asset "${LATEST_ASSET}"
+      echo "Release created successfully."
