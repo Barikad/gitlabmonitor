@@ -22,12 +22,12 @@ build_package:
     - echo "--- End of debugging ---"
     - VERSIONED_PACKAGE_NAME="gitlab-monitor-${CI_COMMIT_TAG}.tar.gz"
     - LATEST_PACKAGE_NAME="gitlab-monitor-latest.tar.gz"
-    # Archive tout le contenu de CI_PROJECT_DIR (.), en excluant le dossier .git
+    - echo "Archiving project files..."
     - tar -C "${CI_PROJECT_DIR}" --exclude=.git -czvf "${VERSIONED_PACKAGE_NAME}" .
     - echo "Package ${VERSIONED_PACKAGE_NAME} created successfully."
-    # Crée une copie avec un nom stable "latest"
+    - echo "Creating a stable 'latest' copy..."
     - cp "${VERSIONED_PACKAGE_NAME}" "${LATEST_PACKAGE_NAME}"
-    - echo "Created stable package ${LATEST_PACKAGE_NAME}"
+    - echo "Created stable package ${LATEST_PACKAGE_NAME}."
   artifacts:
     paths:
       - "*.tar.gz"
