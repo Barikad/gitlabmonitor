@@ -1,5 +1,19 @@
 # Guide de Contribution
 
+## Dépôt Officiel / Official Repository
+
+> **Français :**
+> Le développement et la maintenance de ce projet se font exclusivement sur notre instance GitLab : **[https://gitlab.villejuif.fr/depots-public/gitlabmonitor](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)**.
+>
+> C'est le seul endroit où les contributions (rapports de bugs, suggestions, requêtes de fusion) seront acceptées.
+>
+> **English:**
+> Development and maintenance of this project occur exclusively on our GitLab instance: **[https://gitlab.villejuif.fr/depots-public/gitlabmonitor](https://gitlab.villejuif.fr/depots-public/gitlabmonitor)**.
+>
+> This is the only place where contributions (bug reports, suggestions, merge requests) will be accepted.
+
+---
+
 Nous sommes ravis que vous envisagiez de contribuer à ce projet ! Toute contribution est la bienvenue, qu'il s'agisse de rapports de bugs, de suggestions de fonctionnalités ou de soumissions de code.
 
 **[English version below](#english-version)**
