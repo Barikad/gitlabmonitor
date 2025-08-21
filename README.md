@@ -89,6 +89,14 @@ Ensuite, éditez `config.conf` pour ajuster les variables à vos besoins.
 | `LOG_LEVEL` | Niveau de log (`DEBUG`, `INFO`, `WARN`, `ERROR`). | `"INFO"` |
 
 
+## 🔄 Mise à jour
+
+Pour mettre à jour le script vers la dernière version, exécutez la commande suivante depuis le répertoire d'installation :
+```bash
+./gitlab-public-repo-monitor.sh --upgrade
+```
+Le script vous guidera à travers le processus de mise à jour de manière interactive et sécurisée, en préservant vos fichiers `config.conf` et vos templates personnalisés.
+
 ## 🖥️ Utilisation
 
 ### Exécution Manuelle
@@ -98,6 +106,9 @@ Ensuite, éditez `config.conf` pour ajuster les variables à vos besoins.
 
 # Mode test (n'envoie pas d'email et ne met pas à jour le cache)
 ./gitlab-public-repo-monitor.sh --dry-run
+
+# Lancer la procédure de mise à jour
+./gitlab-public-repo-monitor.sh --upgrade
 ```
 
 ### Automatisation (Cron)
@@ -207,6 +218,14 @@ Then, edit `config.conf` to adjust the variables to your needs.
 | `LOG_LEVEL` | Log level (`DEBUG`, `INFO`, `WARN`, `ERROR`). | `"INFO"` |
 
 
+## 🔄 Updating
+
+To update the script to the latest version, run the following command from within the installation directory:
+```bash
+./gitlab-public-repo-monitor.sh --upgrade
+```
+The script will guide you through a safe and interactive update process, preserving your `config.conf` and any custom templates.
+
 ## 🖥️ Usage
 
 ### Manual Execution
@@ -216,6 +235,9 @@ Then, edit `config.conf` to adjust the variables to your needs.
 
 # Dry-run mode (does not send emails or update the cache)
 ./gitlab-public-repo-monitor.sh --dry-run
+
+# Run the upgrade procedure
+./gitlab-public-repo-monitor.sh --upgrade
 ```
 
 ### Automation (Cron)
