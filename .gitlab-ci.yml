@@ -5,11 +5,12 @@ stages:
 
 build_package:
   stage: build
+  tags:
+    - VJUNIXINFRA
   script:
     - echo "Building package..."
     - mkdir -p dist
-    - tar -czf dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz \
-        gitlab-public-repo-monitor.sh template.en.md template.fr.md config.conf.example
+    - tar -czf dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz gitlab-public-repo-monitor.sh template.en.md template.fr.md config.conf.example
     - cp dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz dist/gitlab-monitor-latest.tar.gz
   artifacts:
     paths:
@@ -18,6 +19,8 @@ build_package:
 
 create_release:
   stage: release
+  tags:
+    - VJUNIXINFRA
   needs:
     - job: build_package
       artifacts: true
@@ -30,14 +33,7 @@ create_release:
     - echo "--- Authenticating with GitLab ---"
     - /usr/bin/glab auth login --hostname "${CI_SERVER_HOST}" --token "${RELEASE_ACCESS_TOKEN}"
     - echo "--- Building assets JSON ---"
-    - url_encode() { python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$1"; }
-    - ASSETS_JSON="[ \
-        {\"name\": \"gitlab-monitor-latest.tar.gz\", \"url\": \"$(url_encode "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/gitlab-monitor-latest.tar.gz?job=build_package")\", \"link_type\": \"other\"}, \
-        {\"name\": \"gitlab-monitor-${CI_COMMIT_TAG}.tar.gz\", \"url\": \"$(url_encode "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz?job=build_package")\", \"link_type\": \"other\"} \
-      ]"
+    - ASSETS_JSON="[{\"name\":\"gitlab-monitor-latest.tar.gz\",\"url\":\"$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' \"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/gitlab-monitor-latest.tar.gz?job=build_package\")\",\"link_type\":\"other\"},{\"name\":\"gitlab-monitor-${CI_COMMIT_TAG}.tar.gz\",\"url\":\"$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))' \"${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz?job=build_package\")\",\"link_type\":\"other\"}]"
     - echo "--- Creating release ---"
-    - /usr/bin/glab release create "${CI_COMMIT_TAG}" \
-        --name "Release ${CI_COMMIT_TAG}" \
-        --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." \
-        --assets-links "$ASSETS_JSON"
+    - /usr/bin/glab release create "${CI_COMMIT_TAG}" --name "Release ${CI_COMMIT_TAG}" --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." --assets-links "$ASSETS_JSON"
     - echo "Release created successfully."
