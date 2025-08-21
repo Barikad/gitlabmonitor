@@ -20,7 +20,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Détection de la langue
+# Détection de la langue (Anglais par défaut)
 LANG=${LANG:-en_US.UTF-8}
 IS_FRENCH=false
 if echo "$LANG" | grep -q -E '^fr'; then
@@ -36,7 +36,7 @@ msg() {
     fi
 }
 
-echo "--- Installation de GitLabMonitor ---"
+echo "--- GitLabMonitor Installer ---"
 
 # Vérification des dépendances
 msg "Vérification des dépendances (curl, tar)..." "Checking dependencies (curl, tar)..."
@@ -92,6 +92,12 @@ msg "Installation dans le répertoire '$INSTALL_DIR'..." "Installing into direct
 # Téléchargement et extraction
 msg "Téléchargement de la dernière version..." "Downloading the latest version..."
 curl -L -o "$TMP_ARCHIVE" "$DOWNLOAD_URL"
+
+if [ ! -f "$TMP_ARCHIVE" ]; then
+    msg "${RED}ERREUR : Le téléchargement a échoué. Le fichier n'a pas été créé.${NC}" "${RED}ERROR: Download failed. The file was not created.${NC}" >&2
+    exit 1
+fi
+
 msg "Extraction de l'archive..." "Extracting the archive..."
 tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR" --strip-components=1
 rm "$TMP_ARCHIVE"
