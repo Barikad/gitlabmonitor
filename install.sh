@@ -12,6 +12,7 @@ set -e
 # Variables
 DOWNLOAD_URL="https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz"
 INSTALL_DIR="gitlabmonitor"
+TMP_ARCHIVE="/tmp/gitlab-monitor-latest.tar.gz"
 
 # Couleurs
 GREEN='\033[0;32m'
@@ -90,7 +91,10 @@ msg "Installation dans le répertoire '$INSTALL_DIR'..." "Installing into direct
 
 # Téléchargement et extraction
 msg "Téléchargement de la dernière version..." "Downloading the latest version..."
-curl -sSL "$DOWNLOAD_URL" | tar -xzv -C "$INSTALL_DIR" --strip-components=1 --overwrite
+curl -L -o "$TMP_ARCHIVE" "$DOWNLOAD_URL"
+msg "Extraction de l'archive..." "Extracting the archive..."
+tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR" --strip-components=1 --overwrite
+rm "$TMP_ARCHIVE"
 
 # Restaurer la configuration si elle a été sauvegardée
 if [ -f "${INSTALL_DIR}/config.conf.bak" ]; then
