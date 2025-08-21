@@ -16,6 +16,7 @@ INSTALL_DIR="gitlabmonitor"
 # Couleurs
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 # Détection de la langue
@@ -39,11 +40,11 @@ echo "--- Installation de GitLabMonitor ---"
 # Vérification des dépendances
 msg "Vérification des dépendances (curl, tar)..." "Checking dependencies (curl, tar)..."
 if ! command -v curl >/dev/null 2>&1; then
-    msg "ERREUR : 'curl' n'est pas installé. Veuillez l'installer avant de continuer." "ERROR: 'curl' is not installed. Please install it to continue." >&2
+    msg "${RED}ERREUR : 'curl' n'est pas installé. Veuillez l'installer avant de continuer.${NC}" "${RED}ERROR: 'curl' is not installed. Please install it to continue.${NC}" >&2
     exit 1
 fi
 if ! command -v tar >/dev/null 2>&1; then
-    msg "ERREUR : 'tar' n'est pas installé. Veuillez l'installer avant de continuer." "ERROR: 'tar' is not installed. Please install it to continue." >&2
+    msg "${RED}ERREUR : 'tar' n'est pas installé. Veuillez l'installer avant de continuer.${NC}" "${RED}ERROR: 'tar' is not installed. Please install it to continue.${NC}" >&2
     exit 1
 fi
 
@@ -51,9 +52,9 @@ fi
 if [ -d "$INSTALL_DIR" ]; then
     msg "${YELLOW}Le répertoire '$INSTALL_DIR' existe déjà.${NC}" "${YELLOW}The directory '$INSTALL_DIR' already exists.${NC}"
     msg "Que souhaitez-vous faire ?" "What would you like to do?"
-    msg "  1) Supprimer le répertoire existant (toutes les données seront perdues)" "  1) Delete the existing directory (all data will be lost)"
-    msg "  2) Écraser les fichiers existants (le fichier 'config.conf' sera préservé)" "  2) Overwrite existing files ('config.conf' will be preserved)"
-    msg "  3) Choisir un nouveau nom de répertoire" "  3) Choose a new directory name"
+    msg "  1) ${RED}Supprimer${NC} le répertoire existant (toutes les données seront perdues)" "  1) ${RED}Delete${NC} the existing directory (all data will be lost)"
+    msg "  2) ${YELLOW}Écraser${NC} les fichiers existants (le fichier 'config.conf' sera préservé)" "  2) ${YELLOW}Overwrite${NC} existing files ('config.conf' will be preserved)"
+    msg "  3) Choisir un ${GREEN}nouveau nom${NC} de répertoire" "  3) Choose a ${GREEN}new name${NC} for the directory"
     
     read -p "$(msg 'Votre choix [1-3] : ' 'Your choice [1-3]: ')" choice
 
@@ -71,10 +72,14 @@ if [ -d "$INSTALL_DIR" ]; then
             ;;
         3)
             read -p "$(msg 'Entrez le nouveau nom du répertoire : ' 'Enter the new directory name: ')" NEW_INSTALL_DIR
+            if [ -z "$NEW_INSTALL_DIR" ]; then
+                msg "${RED}Le nom ne peut pas être vide. Abandon.${NC}" "${RED}The name cannot be empty. Aborting.${NC}" >&2
+                exit 1
+            fi
             INSTALL_DIR="$NEW_INSTALL_DIR"
             ;;
         *)
-            msg "Choix invalide. Abandon." "Invalid choice. Aborting." >&2
+            msg "${RED}Choix invalide. Abandon.${NC}" "${RED}Invalid choice. Aborting.${NC}" >&2
             exit 1
             ;;
     esac
@@ -98,7 +103,7 @@ if [ -f "${INSTALL_DIR}/gitlab-public-repo-monitor.sh" ]; then
     chmod +x "${INSTALL_DIR}/gitlab-public-repo-monitor.sh"
     msg "Script principal rendu exécutable." "Main script made executable."
 else
-    msg "ERREUR : Le script principal n'a pas été trouvé après l'extraction." "ERROR: Main script not found after extraction." >&2
+    msg "${RED}ERREUR : Le script principal n'a pas été trouvé après l'extraction.${NC}" "${RED}ERROR: Main script not found after extraction.${NC}" >&2
     exit 1
 fi
 
