@@ -77,7 +77,8 @@ load_config_and_check_deps() {
     
     required_vars="GITLAB_URL EMAIL_TO EMAIL_FROM NOTIFICATION_LANGUAGE"
     for var in $required_vars; do
-        if [ -z "$(eval echo \$$var)" ]; then log_error "Variable de configuration manquante: $var"; exit 1; fi
+        if [ -z "$(eval echo \"\"
+$var\"\")" ]; then log_error "Variable de configuration manquante: $var"; exit 1; fi
     done
 
     deps="curl jq sendmail"
@@ -178,7 +179,8 @@ send_email() {
     fi
 
     msg_var="MSG_MAILING_TO_${NOTIFICATION_LANGUAGE}"
-    log_info "$(printf "$(eval echo \$$msg_var)" "$recipients")"
+    log_info "$(printf "$(eval echo \"
+$msg_var\"")" "$recipients")"
 
     lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
     template_file="${SCRIPT_DIR}/template.${lang_code}.md"
@@ -290,7 +292,7 @@ run_upgrade() {
 
     msg "Téléchargement de la dernière version depuis ${download_url}..." "Downloading the latest version from ${download_url}..."
     if ! curl -sSL "$download_url" | tar -xz -C "$tmp_dir"; then
-        msg "${RED}ERREUR : Échec du téléchargement ou de l'extraction de la nouvelle version.${NC}" "${RED}ERROR: Failed to download or extract the new version.${NC}" >&2
+        msg "${RED}ERREUR : Échec du téléchargement ou de lExtraction de la nouvelle version.${NC}" "${RED}ERROR: Failed to download or extract the new version.${NC}" >&2
         rm -rf "$tmp_dir"
         return 1
     fi
@@ -298,7 +300,7 @@ run_upgrade() {
     # 2. Vérification de la version
     new_script_path="${tmp_dir}/gitlab-public-repo-monitor.sh"
     if [ ! -f "$new_script_path" ]; then
-        msg "${RED}ERREUR : Script principal introuvable dans larchive téléchargée.${NC}" "${RED}ERROR: Main script not found in the downloaded archive.${NC}" >&2
+        msg "${RED}ERREUR : Script principal introuvable dans lArchive téléchargée.${NC}" "${RED}ERROR: Main script not found in the downloaded archive.${NC}" >&2
         rm -rf "$tmp_dir"
         return 1
     fi
@@ -413,7 +415,8 @@ process_project() {
 
     if is_repo_tracked "$repo_id"; then
         msg_var="MSG_KNOWN_REPO_${NOTIFICATION_LANGUAGE}"
-        log_info "$(printf "$(eval echo \$$msg_var)" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
+        log_info "$(printf "$(eval echo \"
+$msg_var\"")" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
         return 0
     fi
 
@@ -434,7 +437,8 @@ process_project() {
     contributing_status=$(echo "$file_statuses" | awk '{print $3}')
     
     subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    subject_template=$(eval echo \$$subject_template_var)
+    subject_template=$(eval echo ".
+$subject_template_var")
     subject=$(echo "$subject_template" | sed "s/\\\$REPONAME/$repo_name/g")
     
     if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$license_status" "$readme_status" "$contributing_status" "$repo_dev_email"; then
