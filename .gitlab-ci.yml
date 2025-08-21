@@ -9,8 +9,7 @@ build_package:
     - echo "Building package..."
     - mkdir -p dist
     - tar -czf dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz README.md
-    - cp dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz \
-      dist/gitlab-monitor-latest.tar.gz
+    - cp dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz dist/gitlab-monitor-latest.tar.gz
   artifacts:
     paths:
       - dist/*.tar.gz
