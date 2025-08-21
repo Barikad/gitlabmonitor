@@ -100,7 +100,7 @@ fi
 msg "Archive '${TMP_ARCHIVE}' téléchargée avec succès." "Archive '${TMP_ARCHIVE}' downloaded successfully."
 
 msg "Extraction de l'archive..." "Extracting the archive..."
-tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR" --strip-components=1
+tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR"
 rm "$TMP_ARCHIVE"
 
 # Restaurer la configuration si elle a été sauvegardée
