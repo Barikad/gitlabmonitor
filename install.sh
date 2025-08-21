@@ -90,7 +90,7 @@ msg "Installation dans le répertoire '$INSTALL_DIR'..." "Installing into direct
 
 # Téléchargement et extraction
 msg "Téléchargement de la dernière version..." "Downloading the latest version..."
-curl -v -sSL "$DOWNLOAD_URL" | tar -xzv -C "$INSTALL_DIR" --strip-components=1
+curl -v -sSL "$DOWNLOAD_URL" | tar -xzv -C "$INSTALL_DIR" --strip-components=1 --overwrite
 
 # Restaurer la configuration si elle a été sauvegardée
 if [ -f "${INSTALL_DIR}/config.conf.bak" ]; then
