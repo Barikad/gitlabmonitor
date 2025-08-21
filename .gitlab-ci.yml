@@ -12,7 +12,7 @@ build_package:
     - cp dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz dist/gitlab-monitor-latest.tar.gz
   artifacts:
     paths:
-      - dist/*.tar.gz
+      - dist/**/*  # inclut sous-dossiers
     expire_in: 1h
 
 create_release:
@@ -28,6 +28,31 @@ create_release:
     - echo "CI_PROJECT_URL=${CI_PROJECT_URL}"
     - echo "--- Authenticating with GitLab ---"
     - /usr/bin/glab auth login --hostname "${CI_SERVER_HOST}" --token "${RELEASE_ACCESS_TOKEN}"
+    - echo "--- Building assets JSON ---"
+    - |
+      url_encode() {
+        local s="$1"
+        local enc=""
+        for ((i=0; i<${#s}; i++)); do
+          c=${s:$i:1}
+          case "$c" in
+            [a-zA-Z0-9.~_-]) enc+="$c" ;;
+            *) printf -v hex '%%%02X' "'$c"; enc+="$hex" ;;
+          esac
+        done
+        echo "$enc"
+      }
+    - |
+      ASSETS_JSON="["
+      while IFS= read -r -d '' f; do
+        FILE_PATH="${f#dist/}"  # retirer le préfixe dist/
+        URL="${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/dist/${FILE_PATH}?job=build_package"
+        URL_ENCODED=$(url_encode "$URL")
+        NAME=$(basename "$f")
+        ASSETS_JSON+="{\"name\": \"$NAME\", \"url\": \"$URL_ENCODED\", \"link_type\": \"other\"},"
+      done < <(find dist -type f -print0)
+      ASSETS_JSON="${ASSETS_JSON%,}]"  # retire la dernière virgule
+      echo "ASSETS_JSON=$ASSETS_JSON"
     - echo "--- Creating release ---"
-    - /usr/bin/glab release create "${CI_COMMIT_TAG}" --name "Release ${CI_COMMIT_TAG}" --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." --asset "dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz" --asset "dist/gitlab-monitor-latest.tar.gz"
+    - /usr/bin/glab release create "${CI_COMMIT_TAG}" --name "Release ${CI_COMMIT_TAG}" --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." --assets-links "$ASSETS_JSON"
     - echo "Release created successfully."
