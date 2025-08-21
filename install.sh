@@ -40,7 +40,7 @@ echo "Répertoire '$INSTALL_DIR' créé."
 
 # Téléchargement et extraction
 echo "Téléchargement de la dernière version..."
-curl -sSL "$DOWNLOAD_URL" | tar -xz -C "$INSTALL_DIR" --strip-components=1
+curl -sSL "$DOWNLOAD_URL" | tar -xzv -C "$INSTALL_DIR" --strip-components=1
 
 # Rendre le script principal exécutable
 if [ -f "${INSTALL_DIR}/gitlab-public-repo-monitor.sh" ]; then
