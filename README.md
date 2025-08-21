@@ -48,21 +48,6 @@ curl -sSL https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/ins
 ```bash
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
-<<<<<<< HEAD
-```
-Alternativement, vous pouvez télécharger et extraire la dernière version avec la commande suivante :
-```bash
-curl -L "https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz" | tar -xz
-```
-
-[![Download Latest](https://img.shields.io/badge/Télécharger-Dernière%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz)
-
-L'historique complet des versions est aussi disponible sur la [page des Releases](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
-
-Une fois les fichiers obtenus, rendez le script exécutable :
-```bash
-=======
->>>>>>> 8c9fcf6 (feat: Ajoute une procédure de mise à jour intelligente / feat: Add smart upgrade procedure)
 chmod +x gitlab-public-repo-monitor.sh
 ```
 
@@ -77,7 +62,7 @@ L'historique complet des versions est aussi disponible sur la [page des Releases
 ### Configuration
 Après l'installation, créez votre fichier de configuration :
 ```bash
-cd gitlab-monitor
+cd gitlabmonitor
 cp config.conf.example config.conf
 ```
 Ensuite, éditez `config.conf` pour ajuster les variables à vos besoins.
@@ -177,21 +162,6 @@ curl -sSL https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/ins
 ```bash
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
-<<<<<<< HEAD
-```
-Alternatively, you can download and extract the latest version with the following command:
-```bash
-curl -L "https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz" | tar -xz
-```
-
-[![Download Latest](https://img.shields.io/badge/Download-Latest%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz)
-
-The full release history is also available on the [Releases page](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
-
-Once you have the files, make the script executable:
-```bash
-=======
->>>>>>> 8c9fcf6 (feat: Ajoute une procédure de mise à jour intelligente / feat: Add smart upgrade procedure)
 chmod +x gitlab-public-repo-monitor.sh
 ```
 
@@ -206,7 +176,7 @@ The full release history is also available on the [Releases page](https://gitlab
 ### Configuration
 After installation, create your configuration file:
 ```bash
-cd gitlab-monitor
+cd gitlabmonitor
 cp config.conf.example config.conf
 ```
 Then, edit `config.conf` to adjust the variables to your needs.
