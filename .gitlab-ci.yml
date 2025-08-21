@@ -17,6 +17,8 @@ build_package:
 
 create_release:
   stage: release
+  tags:
+    - VJUNIXINFRA
   needs:
     - job: build_package
       artifacts: true
