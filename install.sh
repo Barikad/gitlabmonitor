@@ -93,7 +93,7 @@ msg "Installation dans le répertoire '$INSTALL_DIR'..." "Installing into direct
 msg "Téléchargement de la dernière version..." "Downloading the latest version..."
 curl -L -o "$TMP_ARCHIVE" "$DOWNLOAD_URL"
 msg "Extraction de l'archive..." "Extracting the archive..."
-tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR" --strip-components=1 --overwrite
+tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR" --strip-components=1
 rm "$TMP_ARCHIVE"
 
 # Restaurer la configuration si elle a été sauvegardée
