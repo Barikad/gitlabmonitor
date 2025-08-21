@@ -97,6 +97,7 @@ if [ ! -f "$TMP_ARCHIVE" ]; then
     msg "${RED}ERREUR : Le téléchargement a échoué. Le fichier n'a pas été créé.${NC}" "${RED}ERROR: Download failed. The file was not created.${NC}" >&2
     exit 1
 fi
+msg "Archive '${TMP_ARCHIVE}' téléchargée avec succès." "Archive '${TMP_ARCHIVE}' downloaded successfully."
 
 msg "Extraction de l'archive..." "Extracting the archive..."
 tar -xzvf "$TMP_ARCHIVE" -C "$INSTALL_DIR" --strip-components=1
