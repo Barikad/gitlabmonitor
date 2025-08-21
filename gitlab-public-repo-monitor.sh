@@ -5,17 +5,17 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.7.2
+# Version:  2.8
 # Dépôt:    https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 # Download: https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz
 #
 #==============================================================================
 
-# Exit on unset variables and pipeline errors, but not on individual command errors
-set -uo pipefail
+# Exit on unset variables and pipeline errors
+set -eu
 
 #===[ Global Variables ]===#
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 CONFIG_FILE="${SCRIPT_DIR}/config.conf"
 TRACKING_FILE="${SCRIPT_DIR}/tracked_repos.txt"
 LOG_FILE="${SCRIPT_DIR}/gitlab-monitor.log"
@@ -40,12 +40,9 @@ MSG_MAILING_TO_EN="Mailing to: %s"
 #==============================================================================
 
 log() {
-    local level="$1"; shift
-    local message="$*"
-    local timestamp
+    level="$1"; shift
+    message="$*"
     timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    # ALWAYS log to stderr to not interfere with command substitutions
-    # tee will still write to the log file.
     (echo -e "${timestamp} [${level}] ${message}" | tee -a "${LOG_FILE}") >&2
 }
 
@@ -54,23 +51,39 @@ log_warn() { log "${YELLOW}WARN${NC}" "$@"; }
 log_error() { log "${RED}ERROR${NC}" "$@"; }
 log_success() { log "${GREEN}SUCCESS${NC}" "$@"; }
 
+# Détection de la langue pour les messages interactifs (Anglais par défaut)
+LANG=${LANG:-en_US.UTF-8}
+IS_FRENCH=false
+if echo "$LANG" | grep -q -E '^fr'; then
+    IS_FRENCH=true
+fi
+
+# Messages interactifs bilingues
+msg() {
+    if [ "$IS_FRENCH" = true ]; then
+        echo -e "$1"
+    else
+        echo -e "$2"
+    fi
+}
+
 #==============================================================================
 # Prerequisite Checks & Config Loading
 #==============================================================================
 
 load_config_and_check_deps() {
-    if [[ ! -f "$CONFIG_FILE" ]]; then log_error "Fichier de configuration introuvable: $CONFIG_FILE"; exit 1; fi
-    source "$CONFIG_FILE"
+    if [ ! -f "$CONFIG_FILE" ]; then log_error "Fichier de configuration introuvable: $CONFIG_FILE"; exit 1; fi
+    . "$CONFIG_FILE"
     
-    local required_vars=("GITLAB_URL" "EMAIL_TO" "EMAIL_FROM" "NOTIFICATION_LANGUAGE")
-    for var in "${required_vars[@]}"; do
-        if [[ -z "${!var:-}" ]]; then log_error "Variable de configuration manquante: $var"; exit 1; fi
+    required_vars="GITLAB_URL EMAIL_TO EMAIL_FROM NOTIFICATION_LANGUAGE"
+    for var in $required_vars; do
+        if [ -z "$(eval echo \$$var)" ]; then log_error "Variable de configuration manquante: $var"; exit 1; fi
     done
 
-    local deps=("curl" "jq" "sendmail")
-    if [[ -n "${SMTP_SERVER:-}" ]]; then deps=("curl" "jq"); fi
-    for dep in "${deps[@]}"; do
-        if ! command -v "$dep" &> /dev/null; then log_error "Dépendance manquante: ${dep}"; exit 1; fi
+    deps="curl jq sendmail"
+    if [ -n "${SMTP_SERVER:-}" ]; then deps="curl jq"; fi
+    for dep in $deps; do
+        if ! command -v "$dep" >/dev/null 2>&1; then log_error "Dépendance manquante: ${dep}"; exit 1; fi
     done
 }
 
@@ -80,47 +93,44 @@ load_config_and_check_deps() {
 
 get_public_projects_from_api() {
     log_info "Récupération des projets publics via lAPI..."
-    local api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=last_activity_at&sort=desc&per_page=100"
-    local response
+    api_url="${GITLAB_URL}/api/v4/projects?visibility=public&order_by=last_activity_at&sort=desc&per_page=100"
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
-    if ! echo "$response" | jq empty 2>/dev/null; then
+    if ! echo "$response" | jq empty >/dev/null 2>&1; then
         log_error "Réponse de lAPI invalide."
-        echo "[]" # Return empty JSON array on error
+        echo "[]"
     else
         log_info "Trouvé $(echo "$response" | jq 'length') projets publics."
-        echo "$response" # Return pure JSON on success
+        echo "$response"
     fi
 }
 
 get_last_committer() {
-    local project_id="$1"
-    local api_url="${GITLAB_URL}/api/v4/projects/${project_id}/repository/commits?per_page=1"
-    local response
+    project_id="$1"
+    api_url="${GITLAB_URL}/api/v4/projects/${project_id}/repository/commits?per_page=1"
     response=$(curl -s --connect-timeout "${API_TIMEOUT:-30}" "$api_url")
     
-    # Return both name and email, separated by a newline
     if echo "$response" | jq -e '.[0].author_name' > /dev/null 2>&1; then
         echo "$response" | jq -r '.[0].author_name'
         echo "$response" | jq -r '.[0].author_email'
     else
         echo "N/A"
-        echo "" # Empty email
+        echo ""
     fi
 }
 
 check_files_via_git_clone() {
-    local repo_http_url="$1"
-    local temp_dir; temp_dir=$(mktemp -d)
+    repo_http_url="$1"
+    temp_dir=$(mktemp -d)
     
     log_info "Clonage superficiel de ${repo_http_url}..."
     if git clone --depth 1 --quiet "$repo_http_url" "$temp_dir"; then
-        local license_status="❌"
-        local readme_status="❌"
-        local contributing_status="❌"
+        license_status="❌"
+        readme_status="❌"
+        contributing_status="❌"
         
-        if [[ -f "${temp_dir}/LICENSE" ]]; then license_status="✅"; fi
-        if [[ -f "${temp_dir}/README.md" ]]; then readme_status="✅"; fi
-        if [[ -f "${temp_dir}/CONTRIBUTING.md" ]]; then contributing_status="✅"; fi
+        if [ -f "${temp_dir}/LICENSE" ]; then license_status="✅"; fi
+        if [ -f "${temp_dir}/README.md" ]; then readme_status="✅"; fi
+        if [ -f "${temp_dir}/CONTRIBUTING.md" ]; then contributing_status="✅"; fi
         
         echo "$license_status $readme_status $contributing_status"
     else
@@ -136,7 +146,7 @@ check_files_via_git_clone() {
 #==============================================================================
 
 is_repo_tracked() {
-    [[ -f "$TRACKING_FILE" ]] && grep -q "^$1$" "$TRACKING_FILE"
+    [ -f "$TRACKING_FILE" ] && grep -q "^$1$" "$TRACKING_FILE"
 }
 
 add_to_tracking() {
@@ -148,46 +158,46 @@ add_to_tracking() {
 #==============================================================================
 
 send_email() {
-    local subject="$1"
-    local repo_name="$2"
-    local repo_dev="$3"
-    local repo_url="$4"
-    local has_license="$5"
-    local has_readme="$6"
-    local has_contributing="$7"
-    local repo_dev_email="$8"
+    subject="$1"
+    repo_name="$2"
+    repo_dev="$3"
+    repo_url="$4"
+    has_license="$5"
+    has_readme="$6"
+    has_contributing="$7"
+    repo_dev_email="$8"
 
-    if [[ "$DRY_RUN" == "true" ]]; then
+    if [ "$DRY_RUN" = "true" ]; then
         log_info "DRY-RUN: Notification pour '$repo_name' non envoyée."
         return 0
     fi
 
-    local recipients="$EMAIL_TO"
-    if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
+    recipients="$EMAIL_TO"
+    if [ "${CC_COMMIT_AUTHOR:-false}" = "true" ] && [ -n "$repo_dev_email" ]; then
         recipients="$recipients,$repo_dev_email"
     fi
 
-    local msg_var="MSG_MAILING_TO_${NOTIFICATION_LANGUAGE}"
-    log_info "$(printf "${!msg_var}" "$recipients")"
+    msg_var="MSG_MAILING_TO_${NOTIFICATION_LANGUAGE}"
+    log_info "$(printf "$(eval echo \$$msg_var)" "$recipients")"
 
-    local lang_code="${NOTIFICATION_LANGUAGE,,}"
-    local template_file="${SCRIPT_DIR}/template.${lang_code}.md"
-    if [[ ! -f "$template_file" ]]; then
+    lang_code=$(echo "$NOTIFICATION_LANGUAGE" | tr '[:upper:]' '[:lower:]')
+    template_file="${SCRIPT_DIR}/template.${lang_code}.md"
+    if [ ! -f "$template_file" ]; then
         log_error "Template file not found: $template_file"
         return 1
     fi
-    local email_body_content; email_body_content=$(cat "$template_file")
+    email_body_content=$(cat "$template_file")
 
     # Replace placeholders
-    email_body_content="${email_body_content//\$REPONAME/$repo_name}"
-    email_body_content="${email_body_content//\$REPODEV/$repo_dev}"
-    email_body_content="${email_body_content//\$REPOURL/$repo_url}"
-    email_body_content="${email_body_content//\$HAS_LICENSE/$has_license}"
-    email_body_content="${email_body_content//\$HAS_README/$has_readme}"
-    email_body_content="${email_body_content//\$HAS_CONTRIBUTING/$has_contributing}"
+    email_body_content=$(echo "$email_body_content" | sed \
+        -e "s/\\\$REPONAME/$repo_name/g" \
+        -e "s/\\\$REPODEV/$repo_dev/g" \
+        -e "s/\\\$REPOURL/$repo_url/g" \
+        -e "s/\\\$HAS_LICENSE/$has_license/g" \
+        -e "s/\\\$HAS_README/$has_readme/g" \
+        -e "s/\\\$HAS_CONTRIBUTING/$has_contributing/g")
 
     # Construct the full HTML body
-    local email_body
     email_body=$(cat <<EOF
 <!DOCTYPE html>
 <html>
@@ -216,48 +226,181 @@ ${email_body_content}
 EOF
 )
 
-    local encoded_subject="=?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?="
+    encoded_subject="=?UTF-8?B?$(echo -n "$subject" | base64 -w 0)?="
     
     # Build headers line by line for robustness
-    local email_headers="To: $EMAIL_TO
+    email_headers="To: $EMAIL_TO
 "
-    email_headers+="From: $EMAIL_FROM
+    email_headers="${email_headers}From: $EMAIL_FROM
 "
-    email_headers+="Subject: $encoded_subject
+    email_headers="${email_headers}Subject: $encoded_subject
 "
-    if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
-        email_headers+="Cc: $repo_dev_email
+    if [ "${CC_COMMIT_AUTHOR:-false}" = "true" ] && [ -n "$repo_dev_email" ]; then
+        email_headers="${email_headers}Cc: $repo_dev_email
 "
     fi
-    email_headers+="Content-Type: text/html; charset=UTF-8
+    email_headers="${email_headers}Content-Type: text/html; charset=UTF-8
 "
-    email_headers+="MIME-Version: 1.0"
+    email_headers="${email_headers}MIME-Version: 1.0"
 
     # The final email content requires a blank line between headers and body
-    local email_content="${email_headers}
+    email_content="${email_headers}\n\n${email_body}"
 
-${email_body}"
-
-    if [[ -n "${SMTP_SERVER:-}" ]]; then
+    if [ -n "${SMTP_SERVER:-}" ]; then
         log_info "Utilisation du serveur SMTP ($SMTP_SERVER)..."
-        local curl_recipients=()
-        curl_recipients+=("--mail-rcpt" "$EMAIL_TO")
-        if [[ "${CC_COMMIT_AUTHOR:-false}" == "true" && -n "$repo_dev_email" ]]; then
-            curl_recipients+=("--mail-rcpt" "$repo_dev_email")
+        # sh compatible way to build recipient list
+        recipients_cmd=""
+        recipients_cmd="$recipients_cmd --mail-rcpt $EMAIL_TO"
+        if [ "${CC_COMMIT_AUTHOR:-false}" = "true" ] && [ -n "$repo_dev_email" ]; then
+            recipients_cmd="$recipients_cmd --mail-rcpt $repo_dev_email"
         fi
-        echo -e "$email_content" | curl -s --url "smtp://${SMTP_SERVER}:${SMTP_PORT:-25}" \
+        echo "$email_content" | curl -s --url "smtp://${SMTP_SERVER}:${SMTP_PORT:-25}" \
             --mail-from "$EMAIL_FROM" \
-            "${curl_recipients[@]}" \
+            $recipients_cmd \
             --upload-file -
     else
         log_info "Utilisation de sendmail..."
-        echo -e "$email_content" | sendmail -t
+        echo "$email_content" | sendmail -t
     fi
 
-    if [[ $? -eq 0 ]]; then log_success "Email envoyé pour '$repo_name'."; return 0;
+    if [ $? -eq 0 ]; then log_success "Email envoyé pour '$repo_name'."; return 0;
     else log_error "Échec de lEnvoi de lEmail pour '$repo_name'."; return 1; fi
 }
 
+#==============================================================================
+# Upgrade Function
+#==============================================================================
+
+run_upgrade() {
+    msg "Lancement de la procédure de mise à jour..." "Starting the upgrade procedure..."
+    
+    # 1. Préparation
+    tmp_dir=$(mktemp -d)
+    if [ ! -d "$tmp_dir" ]; then
+        msg "${RED}ERREUR : Impossible de créer le répertoire temporaire.${NC}" "${RED}ERROR: Could not create temporary directory.${NC}" >&2
+        return 1
+    fi
+    
+    download_url=$(grep -m 1 '^# Download:' "$0" | awk '{print $3}')
+    if [ -z "$download_url" ]; then
+        msg "${RED}ERREUR : URL de téléchargement introuvable dans lEn-tête du script.${NC}" "${RED}ERROR: Download URL not found in the script header.${NC}" >&2
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    msg "Téléchargement de la dernière version depuis ${download_url}..." "Downloading the latest version from ${download_url}..."
+    if ! curl -sSL "$download_url" | tar -xz -C "$tmp_dir"; then
+        msg "${RED}ERREUR : Échec du téléchargement ou de l'extraction de la nouvelle version.${NC}" "${RED}ERROR: Failed to download or extract the new version.${NC}" >&2
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    # 2. Vérification de la version
+    new_script_path="${tmp_dir}/gitlab-public-repo-monitor.sh"
+    if [ ! -f "$new_script_path" ]; then
+        msg "${RED}ERREUR : Script principal introuvable dans larchive téléchargée.${NC}" "${RED}ERROR: Main script not found in the downloaded archive.${NC}" >&2
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+    
+    current_version=$(grep -m 1 '^# Version:' "$0" | awk '{print $3}')
+    new_version=$(grep -m 1 '^# Version:' "$new_script_path" | awk '{print $3}')
+
+    msg "Version actuelle : ${current_version}. Version distante : ${new_version}." "Current version: ${current_version}. Remote version: ${new_version}."
+    if [ "$current_version" = "$new_version" ]; then
+        msg "${GREEN}Vous avez déjà la dernière version.${NC}" "${GREEN}You already have the latest version.${NC}"
+        rm -rf "$tmp_dir"
+        return 0
+    fi
+
+    # 3. Analyse des différences
+    msg "Analyse des différences..." "Analyzing differences..."
+    new_config_vars=$(grep -oE '^\w+' "${tmp_dir}/config.conf.example" | sort -u)
+    user_config_vars=$(grep -oE '^\w+' "${CONFIG_FILE}" | sort -u)
+    
+    # Create temp files for comm
+    new_vars_file=$(mktemp)
+    user_vars_file=$(mktemp)
+    echo "$new_config_vars" > "$new_vars_file"
+    echo "$user_config_vars" > "$user_vars_file"
+    missing_vars=$(comm -13 "$user_vars_file" "$new_vars_file")
+    rm "$new_vars_file" "$user_vars_file"
+
+    templates_modified=false
+    hash_file="${SCRIPT_DIR}/.template_hashes"
+    for template in "${SCRIPT_DIR}/template."*.md; do
+        lang_code=$(basename "$template" .md | cut -d. -f2)
+        if [ -f "$template" ]; then
+            current_hash=$(sha256sum "$template" | awk '{print $1}')
+            stored_hash=""
+            # Vérifier si le fichier de hashes existe avant de le lire
+            if [ -f "$hash_file" ]; then
+                stored_hash=$(grep "${lang_code}" "$hash_file" 2>/dev/null | awk '{print $2}' || echo "")
+            fi
+            if [ -z "$stored_hash" ] || [ "$current_hash" != "$stored_hash" ]; then
+                templates_modified=true
+                break
+            fi
+        fi
+    done
+
+    # 4. Rapport et Confirmation
+    echo "-----------------------------------------------------"
+    msg "${GREEN}Une nouvelle version (${new_version}) est disponible !${NC}" "${GREEN}A new version (${new_version}) is available!${NC}"
+    if [ -n "$missing_vars" ]; then
+        msg "${YELLOW}Les nouvelles variables de configuration suivantes ont été détectées :${NC}" "${YELLOW}The following new configuration variables were detected:${NC}"
+        echo "$missing_vars" | while IFS= read -r var; do
+            grep "^${var}" "${tmp_dir}/config.conf.example"
+        done
+        msg "${YELLOW}Vous devrez les ajouter manuellement à votre fichier '${CONFIG_FILE}'.${NC}" "${YELLOW}You will need to add them manually to your '${CONFIG_FILE}' file.${NC}"
+    fi
+    if [ "$templates_modified" = "true" ]; then
+        msg "${YELLOW}Vos templates de mail ont été modifiés.${NC}" "${YELLOW}Your email templates have been modified.${NC}"
+        msg "${YELLOW}Les nouveaux templates seront installés avec lExtension .new.${NC}" "${YELLOW}The new templates will be installed with the .new extension.${NC}"
+    fi
+    echo "-----------------------------------------------------"
+    
+    printf "%s" "$(msg 'Voulez-vous continuer la mise à jour ? [o/N] ' 'Do you want to continue with the update? [y/N] ')"
+    read -r reply
+    if [ "$reply" != "o" ] && [ "$reply" != "O" ] && [ "$reply" != "y" ] && [ "$reply" != "Y" ]; then
+        msg "${RED}Mise à jour annulée.${NC}" "${RED}Update cancelled.${NC}"
+        rm -rf "$tmp_dir"
+        return 1
+    fi
+
+    # 5. Procédure de mise à jour
+    msg "Mise à jour des fichiers..." "Updating files..."
+    # Exclure les fichiers de configuration et les templates
+    rsync -a --exclude='config.conf' --exclude='template.*.md' "${tmp_dir}/" "${SCRIPT_DIR}/"
+    
+    # Gérer les templates
+    for new_template in "${tmp_dir}/template."*.md; do
+        base_name=$(basename "$new_template")
+        if [ "$templates_modified" = "true" ]; then
+            msg "Installation du nouveau template : ${base_name}.new" "Installing new template: ${base_name}.new"
+            cp "$new_template" "${SCRIPT_DIR}/${base_name}.new"
+        else
+            msg "Mise à jour du template : ${base_name}" "Updating template: ${base_name}"
+            cp "$new_template" "${SCRIPT_DIR}/${base_name}"
+        fi
+    done
+
+    chmod +x "${SCRIPT_DIR}/gitlab-public-repo-monitor.sh"
+    
+    # Mettre à jour les hashes
+    msg "Mise à jour des hashes de référence des templates..." "Updating template reference hashes..."
+    > "$hash_file"
+    for template in "${tmp_dir}/template."*.md; do
+        lang_code=$(basename "$template" .md | cut -d. -f2)
+        sha256sum "$template" | awk -v lc="$lang_code" '{print lc " " $1}' >> "$hash_file"
+    done
+
+    msg "${GREEN}Mise à jour vers la version ${new_version} terminée !${NC}" "${GREEN}Upgrade to version ${new_version} complete!${NC}"
+    msg "${YELLOW}N'oubliez pas de vérifier votre 'config.conf' et de fusionner les templates si nécessaire.${NC}" "${YELLOW}Remember to check your 'config.conf' and merge templates if necessary.${NC}"
+    
+    rm -rf "$tmp_dir"
+    return 0
+}
 
 
 #==============================================================================
@@ -265,42 +408,42 @@ ${email_body}"
 #==============================================================================
 
 process_project() {
-    local project_json="$1"
-    local repo_id; repo_id=$(echo "$project_json" | jq -r '.id')
+    project_json="$1"
+    repo_id=$(echo "$project_json" | jq -r '.id')
 
     if is_repo_tracked "$repo_id"; then
-        local msg_var="MSG_KNOWN_REPO_${NOTIFICATION_LANGUAGE}"
-        log_info "$(printf "${!msg_var}" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
-        return 0 # Not a new repo, success.
+        msg_var="MSG_KNOWN_REPO_${NOTIFICATION_LANGUAGE}"
+        log_info "$(printf "$(eval echo \$$msg_var)" "$repo_id" "$(echo "$project_json" | jq -r '.name')")"
+        return 0
     fi
 
     log_info "Nouveau dépôt détecté: $(echo "$project_json" | jq -r '.name')"
     
-    local repo_name; repo_name=$(echo "$project_json" | jq -r '.name')
-    local repo_url; repo_url=$(echo "$project_json" | jq -r '.web_url')
-    local repo_http_url; repo_http_url=$(echo "$project_json" | jq -r '.http_url_to_repo')
+    repo_name=$(echo "$project_json" | jq -r '.name')
+    repo_url=$(echo "$project_json" | jq -r '.web_url')
+    repo_http_url=$(echo "$project_json" | jq -r '.http_url_to_repo')
     
-    # Read committer info into separate variables
-    local committer_info; committer_info=$(get_last_committer "$repo_id")
-    local repo_dev; repo_dev=$(echo "$committer_info" | head -n 1)
-    local repo_dev_email; repo_dev_email=$(echo "$committer_info" | tail -n 1)
+    committer_info=$(get_last_committer "$repo_id")
+    repo_dev=$(echo "$committer_info" | head -n 1)
+    repo_dev_email=$(echo "$committer_info" | tail -n 1)
 
-    # Check for files using git clone
-    local file_statuses; file_statuses=$(check_files_via_git_clone "$repo_http_url")
-    read -r has_license has_readme has_contributing <<< "$file_statuses"
+    file_statuses=$(check_files_via_git_clone "$repo_http_url")
+    # POSIX-compliant read
+    license_status=$(echo "$file_statuses" | awk '{print $1}')
+    readme_status=$(echo "$file_statuses" | awk '{print $2}')
+    contributing_status=$(echo "$file_statuses" | awk '{print $3}')
     
-    # Prepare subject
-    local subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
-    local subject_template="${!subject_template_var}"
-    local subject="${subject_template//\$REPONAME/$repo_name}"
+    subject_template_var="EMAIL_SUBJECT_${NOTIFICATION_LANGUAGE}"
+    subject_template=$(eval echo \$$subject_template_var)
+    subject=$(echo "$subject_template" | sed "s/\\\$REPONAME/$repo_name/g")
     
-    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$has_license" "$has_readme" "$has_contributing" "$repo_dev_email"; then
-        if [[ "$DRY_RUN" == "false" ]]; then
+    if send_email "$subject" "$repo_name" "$repo_dev" "$repo_url" "$license_status" "$readme_status" "$contributing_status" "$repo_dev_email"; then
+        if [ "$DRY_RUN" = "false" ]; then
             add_to_tracking "$repo_id"
         fi
-        return 0 # Success
+        return 0
     else
-        return 1 # Failure
+        return 1
     fi
 }
 
@@ -309,27 +452,28 @@ main() {
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     
-    local public_projects_json; public_projects_json=$(get_public_projects_from_api)
-    local project_count; project_count=$(echo "$public_projects_json" | jq 'length')
+    public_projects_json=$(get_public_projects_from_api)
+    project_count=$(echo "$public_projects_json" | jq 'length')
     
-    if [[ "$project_count" -eq 0 ]]; then log_info "Aucun projet public trouvé."; exit 0; fi
+    if [ "$project_count" -eq 0 ]; then log_info "Aucun projet public trouvé."; exit 0; fi
     
     log_info "Analyse de ${project_count} projets..."
-    local new_repo_count=0
+    new_repo_count=0
     
-    for i in $(seq 0 $((project_count - 1))); do
-        local project_data; project_data=$(echo "$public_projects_json" | jq -c ".[${i}]")
+    i=0
+    while [ $i -lt $project_count ]; do
+        project_data=$(echo "$public_projects_json" | jq -c ".[${i}]")
         if process_project "$project_data"; then
-            # Only increment if it was a new, successfully processed repo
             if ! is_repo_tracked "$(echo "$project_data" | jq -r '.id')"; then
-                 ((new_repo_count++))
+                 new_repo_count=$((new_repo_count + 1))
             fi
         else
             log_warn "Échec du traitement pour le projet $(echo "$project_data" | jq -r .name). Passage au suivant."
         fi
+        i=$((i + 1))
     done
 
-    if [[ $new_repo_count -eq 0 ]]; then
+    if [ $new_repo_count -eq 0 ]; then
         log_info "Aucun nouveau dépôt à notifier."
     else
         log_success "$new_repo_count nouveaux dépôts traités."
@@ -342,9 +486,8 @@ main() {
 # Entry Point
 #==============================================================================
 
-# Parse arguments after functions are defined
-for arg in "$@"; do
-  case $arg in
+while [ $# -gt 0 ]; do
+  case "$1" in
     --dry-run)
       DRY_RUN=true
       shift
@@ -352,9 +495,16 @@ for arg in "$@"; do
     --debug)
       DEBUG_MODE=true
       LOG_FILE="${SCRIPT_DIR}/gitlab-monitor_$(date +%Y%m%d-%H%M%S).log"
-      # Redirect stderr to a process substitution that tees to the log file
       exec 2> >(tee -a "${LOG_FILE}")
       set -x
+      shift
+      ;;;
+    --upgrade)
+      run_upgrade
+      exit $?
+      ;;;
+    *)
+      # unknown option
       shift
       ;;
   esac

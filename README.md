@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-v2.7.2-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
+[![Version](https://img.shields.io/badge/Version-v2.8-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
 
 Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveiller l'apparition de nouveaux dépôts publics et envoyer des notifications par email.
 
@@ -23,26 +23,22 @@ Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveill
 
 ## 🚀 Installation
 
-### 1. Prérequis
-
-- **Shell** : `bash` version 4 ou supérieure.
-- **Outils en ligne de commande** : `git`, `curl`, `jq`.
-- **Serveur mail** : `sendmail` est requis si vous n'utilisez pas de serveur SMTP externe.
-
+### Méthode Rapide (Recommandée)
+Exécutez la commande suivante pour télécharger et installer la dernière version dans un répertoire `gitlab-monitor` :
 ```bash
-# Pour Debian/Ubuntu
-sudo apt-get update && sudo apt-get install bash git curl jq sendmail
-
-# Pour CentOS/RHEL
-sudo yum install bash git curl jq sendmail
+curl -sSL https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/install.sh | sh
 ```
 
-### 2. Installation
+### Autres Méthodes
 
-La méthode recommandée est de cloner le dépôt :
+<details>
+<summary>Afficher les méthodes d'installation alternatives (Git, téléchargement manuel)</summary>
+
+#### Cloner le dépôt (pour les développeurs)
 ```bash
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
+<<<<<<< HEAD
 ```
 Alternativement, vous pouvez télécharger et extraire la dernière version avec la commande suivante :
 ```bash
@@ -55,12 +51,26 @@ L'historique complet des versions est aussi disponible sur la [page des Releases
 
 Une fois les fichiers obtenus, rendez le script exécutable :
 ```bash
+=======
+>>>>>>> 8c9fcf6 (feat: Ajoute une procédure de mise à jour intelligente / feat: Add smart upgrade procedure)
 chmod +x gitlab-public-repo-monitor.sh
 ```
 
-### 3. Configuration
+#### Téléchargement Manuel
+Vous pouvez télécharger la dernière archive `.tar.gz` directement :
 
-Créez votre fichier de configuration personnel à partir de l'exemple fourni (`cp config.conf.example config.conf`) et ajustez les variables suivantes selon vos besoins :
+[![Download Latest](https://img.shields.io/badge/Télécharger-Dernière%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz)
+
+L'historique complet des versions est aussi disponible sur la [page des Releases](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
+</details>
+
+### Configuration
+Après l'installation, créez votre fichier de configuration :
+```bash
+cd gitlab-monitor
+cp config.conf.example config.conf
+```
+Ensuite, éditez `config.conf` pour ajuster les variables à vos besoins.
 
 | Variable | Description | Défaut |
 |---|---|---|
@@ -131,26 +141,22 @@ A robust shell script that uses the **official GitLab API** to monitor for new p
 
 ## 🚀 Installation
 
-### 1. Prerequisites
-
-- **Shell**: `bash` version 4 or higher.
-- **Command-line tools**: `git`, `curl`, `jq`.
-- **Mail Server**: `sendmail` is required only if you are not using an external SMTP server.
-
+### Quick Install (Recommended)
+Run the following command to download and install the latest version into a `gitlab-monitor` directory:
 ```bash
-# For Debian/Ubuntu
-sudo apt-get update && sudo apt-get install bash git curl jq sendmail
-
-# For CentOS/RHEL
-sudo yum install bash git curl jq sendmail
+curl -sSL https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/install.sh | sh
 ```
 
-### 2. Installation
+### Other Methods
 
-The recommended method is to clone the repository:
+<details>
+<summary>Show alternative installation methods (Git, manual download)</summary>
+
+#### Clone the Repository (for developers)
 ```bash
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
+<<<<<<< HEAD
 ```
 Alternatively, you can download and extract the latest version with the following command:
 ```bash
@@ -163,12 +169,26 @@ The full release history is also available on the [Releases page](https://gitlab
 
 Once you have the files, make the script executable:
 ```bash
+=======
+>>>>>>> 8c9fcf6 (feat: Ajoute une procédure de mise à jour intelligente / feat: Add smart upgrade procedure)
 chmod +x gitlab-public-repo-monitor.sh
 ```
 
-### 3. Configuration
+#### Manual Download
+You can download the latest `.tar.gz` archive directly:
 
-Create your personal configuration file from the provided example (`cp config.conf.example config.conf`) and adjust the following variables to your needs:
+[![Download Latest](https://img.shields.io/badge/Download-Latest%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz)
+
+The full release history is also available on the [Releases page](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases).
+</details>
+
+### Configuration
+After installation, create your configuration file:
+```bash
+cd gitlab-monitor
+cp config.conf.example config.conf
+```
+Then, edit `config.conf` to adjust the variables to your needs.
 
 | Variable | Description | Default |
 |---|---|---|
