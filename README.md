@@ -1,5 +1,15 @@
 # GitLab Public Repository Monitor
 
+> **Note sur le Dépôt Officiel**
+>
+> Ce projet est maintenu sur le [GitLab de la Mairie de Villejuif](https://gitlab.villejuif.fr/depots-public/gitlabmonitor). Des miroirs en lecture seule peuvent exister sur d'autres plateformes (GitHub, etc.), mais cette instance est la seule source officielle. Toutes les contributions (tickets, requêtes de fusion) doivent y être soumises.
+>
+> ---
+>
+> **Note on the Official Repository**
+>
+> This project is maintained on the [Mairie de Villejuif's GitLab](https://gitlab.villejuif.fr/depots-public/gitlabmonitor). Read-only mirrors may exist on other platforms (GitHub, etc.), but this instance is the single source of truth. All contributions (issues, merge requests) must be submitted here.
+
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
 [![Version](https://img.shields.io/badge/Version-v2.8-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
