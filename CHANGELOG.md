@@ -4,10 +4,17 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [2.7.2] - Non publié
+## [2.7.2] - 2025-08-21
 
-### Modifié
-- Mise à jour du numéro de version dans le script et la documentation.
+### CI/CD
+- **Correction Majeure :** Remplacement de `release-cli` (déprécié) par `glab` pour la création des releases.
+- **Fiabilisation :** Le pipeline utilise maintenant un runner Docker (`VJUNIXINFRA`) et une authentification robuste pour `glab`.
+- **URL Stable :** Le pipeline génère maintenant une archive `gitlab-monitor-latest.tar.gz` et le `README.md` pointe vers le lien de téléchargement permanent.
+
+### Documentation
+- **README :** Mise à jour du badge de version et ajout d'une commande `curl` pour le téléchargement direct.
+- **Script :** Ajout des URLs du dépôt et du téléchargement dans l'en-tête du script.
+
 
 ## [2.7.1] - 2025-08-17
 

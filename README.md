@@ -44,7 +44,10 @@ La méthode recommandée est de cloner le dépôt :
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
 ```
-Alternativement, vous pouvez télécharger la dernière version directement depuis le registre de paquets :
+Alternativement, vous pouvez télécharger et extraire la dernière version avec la commande suivante :
+```bash
+curl -L "https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz" | tar -xz
+```
 
 [![Download Latest](https://img.shields.io/badge/Télécharger-Dernière%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz)
 
@@ -149,7 +152,10 @@ The recommended method is to clone the repository:
 git clone https://gitlab.villejuif.fr/depots-public/gitlabmonitor.git
 cd gitlabmonitor
 ```
-Alternatively, you can download the latest version directly from the package registry:
+Alternatively, you can download and extract the latest version with the following command:
+```bash
+curl -L "https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz" | tar -xz
+```
 
 [![Download Latest](https://img.shields.io/badge/Download-Latest%20Version-blue?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz)
 
