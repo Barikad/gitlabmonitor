@@ -1,0 +1,36 @@
+---
+stages:
+  - build
+  - release
+
+build_package:
+  stage: build
+  tags:
+    - VJUNIXINFRA
+  script:
+    - echo "Building package..."
+    - mkdir -p dist
+    - tar -czf dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz gitlab-public-repo-monitor.sh template.en.md template.fr.md config.conf.example
+    - cp dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz dist/gitlab-monitor-latest.tar.gz
+  artifacts:
+    paths:
+      - dist/*.tar.gz
+    expire_in: 1h
+
+create_release:
+  stage: release
+  tags:
+    - VJUNIXINFRA
+  needs:
+    - job: build_package
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - echo "--- Creating release with glab ---"
+    - echo "CI_COMMIT_TAG=${CI_COMMIT_TAG}"
+    - echo "CI_PROJECT_URL=${CI_PROJECT_URL}"
+    - /usr/bin/glab auth login --hostname "${CI_SERVER_HOST}" --token "${RELEASE_ACCESS_TOKEN}"
+    - echo "--- Creating release with files ---"
+    - '/usr/bin/glab release create "${CI_COMMIT_TAG}" --name "Release ${CI_COMMIT_TAG}" --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." dist/gitlab-monitor-latest.tar.gz dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz'
+    - echo "Release created successfully."
