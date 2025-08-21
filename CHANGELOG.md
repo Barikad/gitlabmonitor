@@ -4,17 +4,20 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [2.7.2] - 2025-08-21
+## [2.8.0] - 2025-08-21
 
-### CI/CD
-- **Correction Majeure :** Remplacement de `release-cli` (déprécié) par `glab` pour la création des releases.
-- **Fiabilisation :** Le pipeline utilise maintenant un runner Docker (`VJUNIXINFRA`) et une authentification robuste pour `glab`.
-- **URL Stable :** Le pipeline génère maintenant une archive `gitlab-monitor-latest.tar.gz` et le `README.md` pointe vers le lien de téléchargement permanent.
+### Ajouté
+- **Installation Automatisée :** Ajout d'un script `install.sh` pour une installation rapide avec `curl`.
+- **Procédure de Mise à Jour :** Ajout d'une fonction `--upgrade` au script principal pour des mises à jour intelligentes et sécurisées.
+- **Internationalisation :** Les scripts `install.sh` et `gitlab-public-repo-monitor.sh` sont maintenant entièrement bilingues (Français/Anglais) pour les interactions utilisateur.
 
-### Documentation
-- **README :** Mise à jour du badge de version et ajout d'une commande `curl` pour le téléchargement direct.
-- **Script :** Ajout des URLs du dépôt et du téléchargement dans l'en-tête du script.
+### Modifié
+- **CI/CD :** Le pipeline utilise maintenant `glab` (l'outil officiel) et un runner Docker pour créer les releases, améliorant la fiabilité.
+- **Documentation :** Le `README.md` a été entièrement revu pour refléter les nouvelles procédures d'installation et de mise à jour.
 
+### Corrigé
+- **Compatibilité :** Le script principal est maintenant compatible avec `bash` et `sh`.
+- **Fiabilité :** Nombreuses corrections dans le script d'installation pour gérer les cas où le répertoire existe déjà.
 
 ## [2.7.1] - 2025-08-17
 
