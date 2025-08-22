@@ -4,7 +4,6 @@
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg?style=for-the-badge)](https://www.gnu.org/lang/shell)
 [![Version](https://img.shields.io/badge/Version-v2.8-blue.svg?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
 
-
 > **Note sur le Dépôt Officiel**
 >
 > Ce projet est maintenu sur le [GitLab de la Mairie de Villejuif](https://gitlab.villejuif.fr/depots-public/gitlabmonitor). Des miroirs en lecture seule peuvent exister sur d'autres plateformes (GitHub, etc.), mais cette instance est la seule source officielle. Toutes les contributions (tickets, requêtes de fusion) doivent y être soumises.
@@ -14,7 +13,6 @@
 > **Note on the Official Repository**
 >
 > This project is maintained on the [Mairie de Villejuif's GitLab](https://gitlab.villejuif.fr/depots-public/gitlabmonitor). Read-only mirrors may exist on other platforms (GitHub, etc.), but this instance is the single source of truth. All contributions (issues, merge requests) must be submitted here.
-
 
 Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveiller l'apparition de nouveaux dépôts publics et envoyer des notifications par email.
 
