@@ -1,5 +1,10 @@
 # GitLab Public Repository Monitor
 
+[![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
+[![Version](https://img.shields.io/badge/Version-v2.8-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
+
+
 > **Note sur le Dépôt Officiel**
 >
 > Ce projet est maintenu sur le [GitLab de la Mairie de Villejuif](https://gitlab.villejuif.fr/depots-public/gitlabmonitor). Des miroirs en lecture seule peuvent exister sur d'autres plateformes (GitHub, etc.), mais cette instance est la seule source officielle. Toutes les contributions (tickets, requêtes de fusion) doivent y être soumises.
@@ -10,9 +15,6 @@
 >
 > This project is maintained on the [Mairie de Villejuif's GitLab](https://gitlab.villejuif.fr/depots-public/gitlabmonitor). Read-only mirrors may exist on other platforms (GitHub, etc.), but this instance is the single source of truth. All contributions (issues, merge requests) must be submitted here.
 
-[![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-v2.8-blue.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
 
 Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveiller l'apparition de nouveaux dépôts publics et envoyer des notifications par email.
 
@@ -34,7 +36,7 @@ Un script shell robuste qui utilise l'**API officielle de GitLab** pour surveill
 ## 🚀 Installation
 
 ### Méthode Rapide (Recommandée)
-Exécutez la commande suivante pour télécharger et installer la dernière version dans un répertoire `gitlab-monitor` :
+Exécutez la commande suivante pour télécharger et installer la dernière version dans un répertoire `gitlabmonitor` :
 ```bash
 curl -sSL https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/install.sh | sh
 ```
@@ -148,7 +150,7 @@ A robust shell script that uses the **official GitLab API** to monitor for new p
 ## 🚀 Installation
 
 ### Quick Install (Recommended)
-Run the following command to download and install the latest version into a `gitlab-monitor` directory:
+Run the following command to download and install the latest version into a `gitlabmonitor` directory:
 ```bash
 curl -sSL https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/raw/main/install.sh | sh
 ```
