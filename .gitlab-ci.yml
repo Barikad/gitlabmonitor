@@ -40,7 +40,7 @@ mirror_to_gitlab_com:
   tags:
     - VJUNIXINFRA
   variables:
-    GIT_DEPTH: 0   # 🔹 récupère tout l’historique (pas de shallow clone)
+    GIT_DEPTH: 0   # on clone tout l’historique
   script:
     - echo "--- Mirroring repo to GitLab.com ---"
     - git config --global user.name "CI Mirror Bot"
@@ -51,6 +51,9 @@ mirror_to_gitlab_com:
       else
         git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
       fi
-    - git push --mirror mirror
+    # 🔹 Pousser toutes les branches
+    - git push mirror --all
+    # 🔹 Pousser tous les tags
+    - git push mirror --tags
   rules:
     - if: '$CI_COMMIT_BRANCH || $CI_COMMIT_TAG'
