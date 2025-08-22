@@ -36,19 +36,27 @@ create_release:
     - echo "Release created successfully."
 
 sync_to_gitlab_com:
-  stage: sync
-  tags:
-    - VJUNIXINFRA
+  stage: deploy
+  image: alpine:latest
+  variables:
+    GIT_STRATEGY: none       # On ne clone pas automatiquement, on fera un clone manuel complet
   script:
     - echo "--- Mirroring repo to GitLab.com ---"
+    # Config Git pour le push
     - git config --global user.name "CI Mirror Bot"
     - git config --global user.email "ci-mirror@example.com"
-    - git remote remove mirror || true
+
+    # Supprimer tout clone existant dans le job pour repartir propre
+    - rm -rf .git
+
+    # Cloner le dépôt complet en mode mirror (branches + tags + refs)
+    - git clone --mirror https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git .
+
+    # Ajouter le remote GitLab.com avec token
     - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
-    # 🔑 Assurer un clone complet avant de pousser
-    - git fetch --unshallow || true
-    - git fetch --all
-    - git fetch --tags
-    # 🔑 Pousser toutes les branches et tags
-    - git push mirror --all
-    - git push mirror --tags
+
+    # Pousser tout vers GitLab.com
+    - git push mirror --mirror
+
+  only:
+    - main  # ou les branches que tu souhaites mirror
