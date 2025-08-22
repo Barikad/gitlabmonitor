@@ -36,8 +36,7 @@ create_release:
     - echo "Release created successfully."
 
 sync_to_gitlab_com:
-  stage: deploy
-  image: alpine:latest
+  stage: sync
   variables:
     GIT_STRATEGY: none       # On ne clone pas automatiquement, on fera un clone manuel complet
   script:
