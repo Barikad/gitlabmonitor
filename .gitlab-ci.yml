@@ -40,19 +40,22 @@ sync_to_gitlab_com:
   variables:
     GIT_STRATEGY: none
   script:
-    - echo "--- Mirroring only branches and tags to GitLab.com ---"
+    - echo "--- Mirroring branches and tags to GitLab.com (exclude .gitlab-ci.yml) ---"
     - git config --global user.name "CI Mirror Bot"
     - git config --global user.email "ci-mirror@example.com"
 
-    # Cloner le dépôt complet (sans --mirror)
+    # Cloner le dépôt complet
     - rm -rf tmp_mirror || true
     - git clone https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git tmp_mirror
     - cd tmp_mirror
 
+    # Supprimer le fichier .gitlab-ci.yml pour la synchro
+    - git rm --cached .gitlab-ci.yml || true
+    - git commit -m "Remove CI file for GitLab.com sync" || true
+
     # Ajouter le remote GitLab.com
     - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
 
-    # Pousser les branches autorisées
+    # Pousser main et tags
     - git push mirror main
-    # Pousser tous les tags
     - git push mirror --tags
