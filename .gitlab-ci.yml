@@ -1,12 +1,7 @@
----
 stages:
   - build
   - release
   - sync
-
-# ✅ On force GitLab Runner à faire un fetch complet des branches et tags
-variables:
-  GIT_STRATEGY: fetch
 
 build_package:
   stage: build
@@ -50,5 +45,10 @@ sync_to_gitlab_com:
     - git config --global user.email "ci-mirror@example.com"
     - git remote remove mirror || true
     - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
+    # 🔑 Assurer un clone complet avant de pousser
+    - git fetch --unshallow || true
+    - git fetch --all
+    - git fetch --tags
+    # 🔑 Pousser toutes les branches et tags
     - git push mirror --all
     - git push mirror --tags
