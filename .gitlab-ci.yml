@@ -43,8 +43,13 @@ mirror_to_gitlab_com:
     - echo "--- Mirroring repo to GitLab.com ---"
     - git config --global user.name "CI Mirror Bot"
     - git config --global user.email "ci-mirror@example.com"
-    # 🔑 Ajout du remote avec authentification via token
-    - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
+    # 🔹 Ajout ou mise à jour du remote 'mirror'
+    - |
+      if git remote get-url mirror >/dev/null 2>&1; then
+        git remote set-url mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
+      else
+        git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
+      fi
     - git push --mirror mirror
   rules:
-    - if: '$CI_COMMIT_BRANCH || $CI_COMMIT_TAG'   # 🔹 s'exécute à chaque commit ou tag
+    - if: '$CI_COMMIT_BRANCH || $CI_COMMIT_TAG'
