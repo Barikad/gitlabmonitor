@@ -38,24 +38,18 @@ create_release:
 sync_to_gitlab_com:
   stage: sync
   variables:
-    GIT_STRATEGY: none       # On ne clone pas automatiquement, on fera un clone manuel complet
+    GIT_STRATEGY: none  # On ne clone pas automatiquement, on fera un clone manuel complet
   script:
     - echo "--- Mirroring repo to GitLab.com ---"
     # Config Git pour le push
     - git config --global user.name "CI Mirror Bot"
     - git config --global user.email "ci-mirror@example.com"
 
-    # Supprimer tout clone existant dans le job pour repartir propre
-    - rm -rf .git
-
-    # Cloner le dépôt complet en mode mirror (branches + tags + refs)
-    - git clone --mirror https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git .
-
-    # Ajouter le remote GitLab.com avec token
-    - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
+    # Cloner dans un dossier temporaire
+    - rm -rf tmp_mirror || true
+    - git clone --mirror https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git tmp_mirror
 
     # Pousser tout vers GitLab.com
+    - cd tmp_mirror
+    - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
     - git push mirror --mirror
-
-  only:
-    - main  # ou les branches que tu souhaites mirror
