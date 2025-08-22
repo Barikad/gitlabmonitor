@@ -1,7 +1,12 @@
+---
 stages:
   - build
   - release
-  - sync   # 🔹 nouveau stage dédié
+  - sync
+
+# ✅ On force GitLab Runner à faire un fetch complet des branches et tags
+variables:
+  GIT_STRATEGY: fetch
 
 build_package:
   stage: build
@@ -35,25 +40,15 @@ create_release:
     - '/usr/bin/glab release create "${CI_COMMIT_TAG}" --name "Release ${CI_COMMIT_TAG}" --notes "Version ${CI_COMMIT_TAG}. Voir CHANGELOG.md." dist/gitlab-monitor-latest.tar.gz dist/gitlab-monitor-${CI_COMMIT_TAG}.tar.gz'
     - echo "Release created successfully."
 
-mirror_to_gitlab_com:
+sync_to_gitlab_com:
   stage: sync
   tags:
     - VJUNIXINFRA
-  variables:
-    GIT_DEPTH: 0   # on clone tout l’historique
   script:
     - echo "--- Mirroring repo to GitLab.com ---"
     - git config --global user.name "CI Mirror Bot"
     - git config --global user.email "ci-mirror@example.com"
-    - |
-      if git remote get-url mirror >/dev/null 2>&1; then
-        git remote set-url mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
-      else
-        git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
-      fi
-    # 🔹 Pousser toutes les branches
+    - git remote remove mirror || true
+    - git remote add mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
     - git push mirror --all
-    # 🔹 Pousser tous les tags
     - git push mirror --tags
-  rules:
-    - if: '$CI_COMMIT_BRANCH || $CI_COMMIT_TAG'
