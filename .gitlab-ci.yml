@@ -39,11 +39,12 @@ mirror_to_gitlab_com:
   stage: sync
   tags:
     - VJUNIXINFRA
+  variables:
+    GIT_DEPTH: 0   # 🔹 récupère tout l’historique (pas de shallow clone)
   script:
     - echo "--- Mirroring repo to GitLab.com ---"
     - git config --global user.name "CI Mirror Bot"
     - git config --global user.email "ci-mirror@example.com"
-    # 🔹 Ajout ou mise à jour du remote 'mirror'
     - |
       if git remote get-url mirror >/dev/null 2>&1; then
         git remote set-url mirror https://oauth2:${GITLAB_COM_TOKEN}@gitlab.com/Barikad/gitlabmonitor.git
