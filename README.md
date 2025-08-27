@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg?style=for-the-badge)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg?style=for-the-badge)](https://www.gnu.org/lang/shell)
-[![Version](https://img.shields.io/badge/Version-v2.8-blue.svg?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
+[![Version](https://img.shields.io/badge/Version-v2.8.1-blue.svg?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
 
 > **Note sur le Dépôt Officiel**
 >
