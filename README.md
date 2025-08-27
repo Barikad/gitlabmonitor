@@ -1,10 +1,9 @@
 # GitLab Public Repository Monitor
 
-[![pipeline status](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/badges/main/pipeline.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/commit/main)
-[![latest release](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/badges/release.svg)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
+[![latest release](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/badges/release.svg?style=for-the-badge)](https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases)
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg?style=for-the-badge)](https://www.gnu.org/licenses/agpl-3.0)
 [![Shell Script](https://img.shields.io/badge/Language-Shell-green.svg?style=for-the-badge)](https://www.gnu.org/lang/shell)
-[![Platform: GitLab](https://img.shields.io/badge/Platform-GitLab-orange.svg?style=for-the-badge)](https://gitlab.com)
+[![GitLab](https://img.shields.io/badge/GitLab-FC6D26?style=for-the-badge&logo=gitlab&logoColor=white)](https://gitlab.com)
 
 > **Note sur le Dépôt Officiel**
 >
