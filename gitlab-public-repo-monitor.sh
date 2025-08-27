@@ -5,7 +5,7 @@
 #
 # Auteur:   Joachim COQBLIN + un peu de LLM
 # Licence:  AGPLv3
-# Version:  2.8
+# Version:  2.8.1
 # Dépôt:    https://gitlab.villejuif.fr/depots-public/gitlabmonitor
 # Download: https://gitlab.villejuif.fr/depots-public/gitlabmonitor/-/releases/permalink/latest/downloads/gitlab-monitor-latest.tar.gz
 #
@@ -188,14 +188,14 @@ send_email() {
     fi
     email_body_content=$(cat "$template_file")
 
-    # Replace placeholders
+    # Replace placeholders (using | as delimiter to avoid issues with URLs)
     email_body_content=$(echo "$email_body_content" | sed \
-        -e "s/\\\$REPONAME/$repo_name/g" \
-        -e "s/\\\$REPODEV/$repo_dev/g" \
-        -e "s/\\\$REPOURL/$repo_url/g" \
-        -e "s/\\\$HAS_LICENSE/$has_license/g" \
-        -e "s/\\\$HAS_README/$has_readme/g" \
-        -e "s/\\\$HAS_CONTRIBUTING/$has_contributing/g")
+        -e "s|\$REPONAME|$repo_name|g"
+        -e "s|\$REPODEV|$repo_dev|g"
+        -e "s|\$REPOURL|$repo_url|g"
+        -e "s|\$HAS_LICENSE|$has_license|g"
+        -e "s|\$HAS_README|$has_readme|g"
+        -e "s|\$HAS_CONTRIBUTING|$has_contributing|g")
 
     # Construct the full HTML body
     email_body=$(cat <<EOF
@@ -450,7 +450,7 @@ process_project() {
 }
 
 main() {
-    log_info "=== Début du monitoring GitLab (v2.5.9 API) ==="
+    log_info "=== Début du monitoring GitLab (v2.8.1) ==="
     load_config_and_check_deps
     touch "$TRACKING_FILE"
     

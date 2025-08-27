@@ -4,6 +4,11 @@ Toutes les modifications notables apportées à ce projet seront documentées da
 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [2.8.1] - 2025-08-27
+
+### Corrigé
+- **Génération des emails :** Remplacement du délimiteur `/` par `|` dans la commande `sed` pour éviter les erreurs lors de la substitution des URLs (`$REPOURL`) dans les templates d'email.
+
 ## [2.8.0] - 2025-08-21
 
 ### Ajouté
